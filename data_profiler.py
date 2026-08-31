@@ -22,3 +22,6 @@ class DataProfiler:
 
     def __repr__(self):
         return f"DataProfiler(fuente={self.source!r}, filas={len(self.df)}, columnas={len(self.df.columns)})"
+
+    def reporte_nulos(self):
+        return self.df.isna().sum()
