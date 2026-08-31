@@ -25,3 +25,6 @@ class DataProfiler:
 
     def reporte_nulos(self):
         return self.df.isna().sum()
+
+    def reporte_duplicados(self):
+        return self.df.duplicated().sum()
