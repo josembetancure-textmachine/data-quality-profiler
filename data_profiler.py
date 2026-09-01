@@ -13,7 +13,9 @@ class DataProfiler:
                 self.source=df
                 df=pd.read_excel(df)
             else:
-                raise ValueError("La ruta del archivo a analizar contiene un error o es un formato no admitido. Solo se admiten formatos .csv, .xlsx y DataFrames.")
+                raise ValueError("La ruta del archivo a analizar contiene un error o es un formato no admitido."
+                                 " Solo se admiten formatos .csv, .xlsx y DataFrames."
+                                 )
         else:
             self.source="DataFrame en memoria"
             df=pd.DataFrame(df)
