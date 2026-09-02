@@ -31,6 +31,12 @@ class DataProfiler:
     def reporte_duplicados(self):
         return self.df.duplicated().sum()
 
+    def reporte_tipos_inconsistentes(self):
+        data_columna={}
+        for col in self.df.columns:
+            data_columna[col]=len(self.df[col].dropna().apply(type).value_counts())
+        return data_columna
+    
 if __name__=="__main__":
     if len(sys.argv)<2:
         print("Falta almenos un argumento. Debe ejecutar la herramienta así:\npython3 data_profiler.py archivo_a_analizar(con su extensión)")
