@@ -4,7 +4,7 @@ Este proyecto surgió como etapa inicial de mi camino de aprendizaje autónomo, 
 
 Ante el uso de la IA como generadora de código, estas notas pretenden, primero, ser una evidencia de mi proceso de pensamiento a medida que construía el código y, segundo, demostrar que interioricé los conceptos usados. Por supuesto, me apoyé en Claude como "instructor particular" para que me explicara qué debía usar, cómo y cuándo, mas no le asigné el rol de programador activo mediante _prompting_ o _vibe coding_. Todo lo construido en este proyecto fue hecho por mí.
 
-**Esta es la primera iteración del código. Si es necesario más adelante, se introducirán en cada sección las versiones actualizadas y se indicará el motivo del cambio, bajo el subtítulo "Iteraciones".**
+**De ser necesario, cada sección contendrá un apartado para explicar los intentos fallidos de código con el objetivo de consolidar mejor el aprendizaje.**
 
 # if __name__=="__main__"
 
@@ -18,7 +18,7 @@ if __name__=="__main__":                                                        
     else:                                                                                                                                       #quinta línea
         df=sys.argv[1]                                                                                                                          #sexta línea
 ```
-**Explicación del código:**
+## **Explicación del código:**
 1. La primera línea abre un condicional que se cumple solo si el _script_ se ejecuta a sí mismo. En contraposición, cuando es otro _script_ el que ejecuta un _import_ de data_profiler.py, lo que está anidado dentro de este bloque no llega a ejecutarse.
 2. Condicional para asegurar el número de argumentos que deben pasarse a través del CLI para la correcta ejecución del código. ```sys.argv[0]``` siempre es el nombre del _script_ que se quiere ejecutar; ```sys.argv[1]``` debe contener la ruta del archivo que se desea analizar. Por eso, ```len(sys.argv)<2``` funciona como medida de seguridad para que siempre se pasen estos dos argumentos.
 3. Si lo anterior falla, entonces se imprime un mensaje de error.
@@ -49,7 +49,7 @@ class DataProfiler:                                                             
 
         self.df=df                                                                                                  #décimoquinta línea
 ```
-**Explicación del código:**
+## **Explicación del código:**
 
 1. Definición de la clase.
 2. Definición de los parámetros de la clase.
@@ -85,7 +85,7 @@ Dentro del __repr__ se debe poner información útil sobre el objeto, y se debe 
     def __repr__(self):                                                                                         #primera línea
         return f"DataProfiler(fuente={self.source!r}, filas={len(self.df)}, columnas={len(self.df.columns)})"   #segunda línea
 ```
-**Explicación del código:**
+## **Explicación del código:**
 
 1. Se define el método __repr__.
 2. Se construye lo que devuelve este método. En este caso, se desea visualizar las características destacables del argumento con el que se construyó la clase:
@@ -101,7 +101,7 @@ La idea es evaluar cuántos datos tipo NaN, NaT y None hay en el DataFrame.
     def reporte_nulos(self):        #primera línea
         return self.df.isna().sum() #segunda línea
 ```
-**Explicación del código:**
+## **Explicación del código:**
 
 1. Se define el método reporte_nulos().
 2. Sobre el atributo ```self.df```se usa la función ```.isna()```para determinar cuántos valores del DataFrame son NaN, NaT o None. Algunas precisiones importantes sobre ```.isna()```son:
@@ -117,7 +117,7 @@ Sirve para evaluar las filas duplicadas dentro del DataFrame.
     def reporte_duplicados(self):           #primera línea
         return self.df.duplicated().sum()   #segunda línea
 ```
-**Explicación del código:**
+## **Explicación del código:**
 
 1. Se define el método reporte_duplicados().
 2. Sobre el atributo ```self.df``` se usa la función ```.duplicated()``` para determinar cuántas filas exactamente iguales (es decir, con los mismos valores en las mismas columnas) hay. Esta función opera al nivel de la fila y lo que hace es comparar una por una, sin importar si son adyacentes o no, para determinar cuáles de ellas son duplicadas. Como la función devuelve un dato tipo Series a modo de máscara booleana, ```.sum()```devuelve el total de filas duplicadas con las siguientes consideraciones:
@@ -135,7 +135,7 @@ Sirve para detectar aquellas columnas que tienen diferentes tipos de datos mezcl
             data_columna[col]=len(self.df[col].dropna().apply(type).value_counts())     #cuarta línea
         return data_columna                                                             #quinta línea
 ```
-**Explicación del código:**
+## **Explicación del código:**
 
 1. Se define el método reporte_tipos_inconsistentes().
 2. Se define un diccionario que servirá para almacenar la cantidad de tipos de datos que contiene una sola columna, donde la columna es la llave y el conteo de los tipos de datos es el valor. De este modo, si el valor para una llave es mayor a 1, se considera que esa columna es inconsistente.
@@ -152,3 +152,51 @@ Sirve para detectar aquellas columnas que tienen diferentes tipos de datos mezcl
         - Por eso, cuando se afirma que lo que se obtiene es un diccionario, se refiere al resultado final.
     - Aunque de por sí ya es información útil, lo que se necesita no es visualizar el tipo de dato que es cada valor de cada columna, sino cuántos tipos de datos diferentes hay en esa columna. Esta es la pregunta que resuelve ```.value_counts()```.
 5. Se define lo que devuelve la función: un diccionario en el que cada llave (en términos prácticos, cada columna) contiene la cantidad de tipos de datos que hay en cada columna de ```self.df```.
+
+## **Intentos fallidos:**
+### Primer intento:
+
+```python
+def reporte_tipos_inconsistentes(self):
+    columns=self.df.columns
+    tipos_inconsistentes=self.df[columns].apply(type)
+    return tipos_inconsistentes
+```
+Falla porque ```.apply()``` se comporta diferente según lo que reciba. Cuando recibe un pd.Series, se aplica sobre cada valor individual, pero cuando recibe un pd.DataFrame, se aplica sobre la estructura completa. Como ```columns=self.df.columns```, entonces ```.apply(type)``` recibió mediante ```self.df[columns]``` la totalidad de las columnas. Al realizar la prueba con el siguiente código:
+```python
+df_prueba = pd.DataFrame({"a": [3,"w",None], "b":[4,"h",0], "c":["x","y","x"]})
+columns=df_prueba.columns
+tipos_inconsistentes=df_prueba[columns].apply(type)
+print(columns)
+print(tipos_inconsistentes)
+```
+Se obtiene lo siguiente:
+
+```python
+Index(['a', 'b', 'c'], dtype='str')
+a    <class 'pandas.Series'>
+b    <class 'pandas.Series'>
+c    <class 'pandas.Series'>
+dtype: object
+```
+Esto que quiere decir que evalúa cada columna entera y no cada uno de sus valores. Por eso siempre devuelve pandas.Series
+
+### Segundo intento:
+
+```python
+def reporte_tipos_inconsistentes(self):
+    for col in self.df.columns:
+        return self.df[col].apply(type)
+```
+Falla porque return corta la ejecución del código una vez se ejecuta su línea. De esta manera, solo devolverá el _output_ para la primera columna.
+
+### Tercer intento:
+
+```python
+def reporte_tipos_inconsistentes(self):
+    tipos_inconsistentes={}
+    for col in self.df.columns:
+        tipos_inconsistentes[col]=self.df[col].apply(type)
+    return tipos_inconsistentes
+```
+Funciona, pero no es la versión final. Lo que obtengo es un diccionario que contiene el tipo de dato de cada valor de cada llave, cuando lo que necesito saber es la cantidad de tipos de datos (valor) por columna (llave).
