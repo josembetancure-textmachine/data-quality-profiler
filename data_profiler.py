@@ -36,6 +36,16 @@ class DataProfiler:
         for col in self.df.columns:
             data_columna[col]=len(self.df[col].dropna().apply(type).value_counts())
         return data_columna
+
+    def reporte_outliers(self):
+        columnas_numericas=self.df.select_dtypes(include="number").columns
+        Q1=self.df[columnas_numericas].quantile(0.25)
+        Q3=self.df[columnas_numericas].quantile(0.75)
+        IQR=Q3-Q1
+        limite_inferior=Q1-1.5*IQR
+        limite_superior=Q3+1.5*IQR
+        limites=((self.df[columnas_numericas]<limite_inferior)|(self.df[columnas_numericas]>limite_superior)).sum()
+        return limites
     
 if __name__=="__main__":
     if len(sys.argv)<2:
