@@ -85,6 +85,8 @@ Dentro del __repr__ se debe poner información útil sobre el objeto, y se debe 
     def __repr__(self):                                                                                         #primera línea
         return f"DataProfiler(fuente={self.source!r}, filas={len(self.df)}, columnas={len(self.df.columns)})"   #segunda línea
 ```
+**Explicación del código:**
+
 1. Se define el método __repr__.
 2. Se construye lo que devuelve este método. En este caso, se desea visualizar las características destacables del argumento con el que se construyó la clase:
     - fuente, es decir, si la fuente fue un archivo .csv, .xlsx o un DataFrame. Nótese que se usa !r, pues lo que contiene ```self.source```es tipo str.
@@ -99,6 +101,8 @@ La idea es evaluar cuántos datos tipo NaN, NaT y None hay en el DataFrame.
     def reporte_nulos(self):        #primera línea
         return self.df.isna().sum() #segunda línea
 ```
+**Explicación del código:**
+
 1. Se define el método reporte_nulos().
 2. Sobre el atributo ```self.df```se usa la función ```.isna()```para determinar cuántos valores del DataFrame son NaN, NaT o None. Algunas precisiones importantes sobre ```.isna()```son:
     - Esta función opera sobre cada uno de los valores del DataFrame. Devuelve una dato tipo pd.DataFrame a modo de máscara booleana donde se marcan con True aquellos valores NaN, NaT o None, y con False aquellos que no lo son.
@@ -113,7 +117,38 @@ Sirve para evaluar las filas duplicadas dentro del DataFrame.
     def reporte_duplicados(self):           #primera línea
         return self.df.duplicated().sum()   #segunda línea
 ```
+**Explicación del código:**
+
 1. Se define el método reporte_duplicados().
 2. Sobre el atributo ```self.df``` se usa la función ```.duplicated()``` para determinar cuántas filas exactamente iguales (es decir, con los mismos valores en las mismas columnas) hay. Esta función opera al nivel de la fila y lo que hace es comparar una por una, sin importar si son adyacentes o no, para determinar cuáles de ellas son duplicadas. Como la función devuelve un dato tipo Series a modo de máscara booleana, ```.sum()```devuelve el total de filas duplicadas con las siguientes consideraciones:
     - Suponiendo que la fila con índice 0 sea exactamente igual a la fila con índice 3, por ejemplo, ```.duplicated()``` marcará la fila con índice 3 como True. Parecería, entonces, que soy hay una fila duplicada cuando en realidad son dos, pero es el comportamiento por defecto de esta función cuando no tiene parámetros (marca como True la fila de índice 3 por ser la duplicada de la fila con índice 0 que, al ser la primera, no es duplicada de ninguna). El parámetro keep es el que determina este comportamiento. Por defecto, es igual a "first". Sin embargo, si es igual a False, marca todas las duplicadas (para el caso, marcaría como True tanto la fila de índice 0 como la fila de índice 3); es útil cuando necesito saber, por ejemplo, el índice de las filas duplicadas. keep también puede ser igual a "last", el cual invierte el comportamiento por defecto (es decir, marcaría la fila con índice 3 como False y la fila con índice 0 como True).
     - Tiene otros parámetros como subset, que sirve para hacer el conteo de duplicados pero restringido a los valores de las columnas indicadas. Por defecto, ```.duplicated()``` opera a nivel de todas las columnas.
+
+# Método reporte_tipos_inconsistentes():
+
+Sirve para detectar aquellas columnas que tienen diferentes tipos de datos mezclados.
+
+```python
+    def reporte_tipos_inconsistentes(self):                                             #primera línea
+        data_columna={}                                                                 #segunda línea
+        for col in self.df.columns:                                                     #tercera línea
+            data_columna[col]=len(self.df[col].dropna().apply(type).value_counts())     #cuarta línea
+        return data_columna                                                             #quinta línea
+```
+**Explicación del código:**
+
+1. Se define el método reporte_tipos_inconsistentes().
+2. Se define un diccionario que servirá para almacenar la cantidad de tipos de datos que contiene una sola columna, donde la columna es la llave y el conteo de los tipos de datos es el valor. De este modo, si el valor para una llave es mayor a 1, se considera que esa columna es inconsistente.
+3. Se declara un ciclo for que usa la variable "col" para recorrer todas las columnas de ```self.df```.
+4. El diccionario declarado con cada columna individual como llave se llena con el conteo de los tipos de datos que hay en una columna, así:
+    - ```data_columna[col]``` es la declaración donde se define cada columna como llave.
+    - ```self.df``` es de tipo pd.DataFrame y se filtra por sus columnas. El ciclo for es indispensable, justamente, para obtener cada columna por iteración. Es decir, sin el ciclo, no se podría evaluar cada columna individualmente.
+    - A ```self.df[col]``` se aplica ```.dropna()``` para descartar todos los valores NaN, NaT o None de cada columna, lo cual no solo es importante para no invadir el dominio de la función reporte_nulos(), sino también para no generar datos erróneos en los casos en los que una columna tenga valores tipo str y None (estos últimos también son de tipo float). Por ejemplo, si una columna tiene los valores ["a",None], sin ```.dropna()``` el conteo daría str=1 y float=1, pero None indica simplemente que no hay valor, por lo que no tiene sentido marcar la columna como inconsistente. Eso sería un trabajo para otra función que determine celdas vacías o aparentemente vacías (como aquellas celdas compuestas por solo espacios).
+    - Una vez descartados los valores tipo NaN, NaT o None, se aplica a cada columna ```.apply(type)```. La función ```.apply()``` permite aplicarle una función a un objeto tipo pd.DataFrame o pd.Series. Para el caso, lo que se hace aquí es determinar el tipo de cada valor de cada columna. De esta manera, al final, se obtiene un diccionario que contiene un valor tipo int que indica la cantidad de tipos de datos que hay en cada columna. Esta línea sigue el siguiente camino: 
+        - ```self.df[col].dropna()``` devuelve un pd.Series sin los valores tipo NaN, NaT, o None que el original tenía.
+        - A ese pd.Series se le aplica ```.apply(type)```, lo que devuelve también un pd.Series.
+        - A ese pd.Series se le aplica ```.value_counts()```, lo que devuelve también un pd.Series.
+        - Ese pd.Series que se obtiene pasa por ```len()```, que devuelve un int como valor por cada llave del diccionario (columnas).
+        - Por eso, cuando se afirma que lo que se obtiene es un diccionario, se refiere al resultado final.
+    - Aunque de por sí ya es información útil, lo que se necesita no es visualizar el tipo de dato que es cada valor de cada columna, sino cuántos tipos de datos diferentes hay en esa columna. Esta es la pregunta que resuelve ```.value_counts()```.
+5. Se define lo que devuelve la función: un diccionario en el que cada llave (en términos prácticos, cada columna) contiene la cantidad de tipos de datos que hay en cada columna de ```self.df```.
