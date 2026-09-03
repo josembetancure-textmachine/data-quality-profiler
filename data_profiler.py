@@ -29,7 +29,14 @@ class DataProfiler:
         return self.df.isna().sum()
 
     def reporte_duplicados(self):
-        return self.df.duplicated().sum()
+        mascara_duplicados=self.df.duplicated(keep=False)
+        if self.source=="DataFrame en memoria":
+            filas_duplicadas=(self.df[mascara_duplicados].index).tolist()
+            total_duplicadas=int(mascara_duplicados.sum())
+        else:
+            filas_duplicadas=(self.df[mascara_duplicados].index+2).tolist()
+            total_duplicadas=int(mascara_duplicados.sum())
+        return {"total":total_duplicadas, "filas":filas_duplicadas}
 
     def reporte_tipos_inconsistentes(self):
         data_columna={}
