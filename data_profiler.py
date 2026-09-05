@@ -51,8 +51,10 @@ class DataProfiler:
         IQR=Q3-Q1
         limite_inferior=Q1-1.5*IQR
         limite_superior=Q3+1.5*IQR
-        limites=((self.df[columnas_numericas]<limite_inferior)|(self.df[columnas_numericas]>limite_superior)).sum()
-        return limites
+        mascara_outliers=((self.df[columnas_numericas]<limite_inferior)|(self.df[columnas_numericas]>limite_superior))
+        valores_outliers={col: self.df[col][mascara_outliers[col]] for col in self.df[columnas_numericas]}
+        total_outliers=sum(len(serie)for serie in valores_outliers.values())
+        return {"total":total_outliers,"valores":valores_outliers}
     
 if __name__=="__main__":
     if len(sys.argv)<2:
