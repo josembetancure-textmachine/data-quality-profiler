@@ -200,3 +200,41 @@ def reporte_tipos_inconsistentes(self):
     return tipos_inconsistentes
 ```
 Funciona, pero no es la versión final. Lo que obtengo es un diccionario que contiene el tipo de dato de cada valor de cada llave, cuando lo que necesito saber es la cantidad de tipos de datos (valor) por columna (llave).
+
+# Método reporte_outliers():
+
+Sirve para detectar los elementos por columna que son outliers, es decir, valores atípicos. Se usa el método intercuartílico para determinar aquellos valores que se encuentran a 1,5 veces del rango intercuartílico (atípicos leves).
+
+```python
+    def reporte_outliers(self):                                                     #primera línea
+        columnas_numericas = self.df.select_dtypes(include="number").columns        #segunda línea
+        Q1 = self.df[columnas_numericas].quantile(0.25)                             #tercera línea
+        Q3 = self.df[columnas_numericas].quantile(0.75)                             #cuarta línea
+        IQR = Q3 - Q1                                                               #quinta línea
+        limite_inferior = Q1 - 1.5 * IQR                                            #sexta línea
+        limite_superior = Q3 + 1.5 * IQR                                            #séptima línea
+        mascara_outliers = (
+            (self.df[columnas_numericas] < limite_inferior)
+            | (self.df[columnas_numericas] > limite_superior)
+        )                                                                           #octava línea
+        valores_outliers = {
+            col: self.df[col][mascara_outliers[col]]
+            for col in columnas_numericas
+        }                                                                           #novena línea
+        total_outliers = sum(len(serie) for serie in valores_outliers.values())     #décima línea
+        return {"total": total_outliers, "valores": valores_outliers}               #onceava línea
+```
+1. Se define el método reporte_outliers.
+2. Se definen las columnas numéricas del DataSet, es decir, aquellas que tienen valores de tipo int64 y float64.
+3. Se define el cuartil 1 con ```.quantile()```. Un cuartil consiste en agrupar los datos en 4 grupos, pero con 3 puntos de corte. Estos puntos de corte son:
+    - Q1: un valor para el cual el 25 % de los datos están por debajo y el 75 % por encima.
+    - Q2: la mediana.
+    - Q3: un valor para el cual el 75 % de los datos están por debajo y el 25 % por encima.
+De esta manera, se producen 4 grupos: 0-25 %, 25-50 %, 50-75 %, 75-100 %.
+4. Se define Q3.
+5. Se define el IQR, el cual es la diferencia entre Q3 y Q1.
+6. En las dos líneas siguientes se definen el límite inferior y el límite superior. Se usa 1.5 para hallar valores atípicos leves, pues 3 sirve para hallar, sobre todo, los valores atípicos extremos.
+7. Se define una máscara booleana para determinar si los valores de las columnas numéricas de self.df son menores al límite inferior definido o mayores al límite superior. Al ser una máscara, obtengo un pd.DataFrame que cataloga cada valor con True si cumple al menos una de las dos condiciones. False si es un valor que no es atípico, es decir, que está dentro del rango.
+8. Como pd.DataFrame ya conserva el índice de esos valores atípicos, se crea un diccionario mediante una comprensión, de manera tal que el nombre de la columna sea la llave y los valores aquellos marcados como True por la máscara booleana. A cada columna de self.df se le aplica la máscara booleana pero columna a columna.
+9. Cuento cuántos valores son outliers en total.
+    
