@@ -109,7 +109,7 @@ La idea es evaluar cuántos datos tipo NaN, NaT y None hay en el DataFrame.
     - Funciona exactamente igual a ```.isnull()```, es decir, son la misma función. Incluso, la documentación oficial dice que esta última es un alias de la primera.
     - ```.sum()``` opera sobre la máscara booleana. Como True es igual a 1 y False es igual a 0, el resultado es un int que representa el número total de valores que son NaN, NaT o None. ```.sum()```puede recibir el parámetro axis, el cual modifica la dirección de conteo. Por defecto, su valor es igual a 0, lo que significa que cuenta por columnas, es decir, devuelve una sumatoria de los valores de cada columna; axis igual a 1, por el contrario, devuelve una sumatoria total de los valores por fila.
 
-# Método resporte_duplicados():
+# Método reporte_duplicados():
 
 Sirve para evaluar las filas duplicadas dentro del DataFrame.
 
@@ -123,6 +123,35 @@ Sirve para evaluar las filas duplicadas dentro del DataFrame.
 2. Sobre el atributo ```self.df``` se usa la función ```.duplicated()``` para determinar cuántas filas exactamente iguales (es decir, con los mismos valores en las mismas columnas) hay. Esta función opera al nivel de la fila y lo que hace es comparar una por una, sin importar si son adyacentes o no, para determinar cuáles de ellas son duplicadas. Como la función devuelve un dato tipo Series a modo de máscara booleana, ```.sum()```devuelve el total de filas duplicadas con las siguientes consideraciones:
     - Suponiendo que la fila con índice 0 sea exactamente igual a la fila con índice 3, por ejemplo, ```.duplicated()``` marcará la fila con índice 3 como True. Parecería, entonces, que soy hay una fila duplicada cuando en realidad son dos, pero es el comportamiento por defecto de esta función cuando no tiene parámetros (marca como True la fila de índice 3 por ser la duplicada de la fila con índice 0 que, al ser la primera, no es duplicada de ninguna). El parámetro keep es el que determina este comportamiento. Por defecto, es igual a "first". Sin embargo, si es igual a False, marca todas las duplicadas (para el caso, marcaría como True tanto la fila de índice 0 como la fila de índice 3); es útil cuando necesito saber, por ejemplo, el índice de las filas duplicadas. keep también puede ser igual a "last", el cual invierte el comportamiento por defecto (es decir, marcaría la fila con índice 3 como False y la fila con índice 0 como True).
     - Tiene otros parámetros como subset, que sirve para hacer el conteo de duplicados pero restringido a los valores de las columnas indicadas. Por defecto, ```.duplicated()``` opera a nivel de todas las columnas.
+
+**Iteración del código sobre decisiones de diseño:**
+
+```python
+    def reporte_duplicados(self):                                                   #primera línea
+        mascara_duplicados = self.df.duplicated(keep=False)                         #segunda línea
+        if self.source == "DataFrame en memoria":                                   #tercera línea
+            filas_duplicadas = (self.df[mascara_duplicados].index).tolist()         #cuarta línea
+            total_duplicadas = int(mascara_duplicados.sum())                        #quinta línea
+        else:                                                                       #sexta línea
+            filas_duplicadas = (self.df[mascara_duplicados].index + 2).tolist()     #séptima línea
+            total_duplicadas = int(mascara_duplicados.sum())                        #ocatava línea
+        return {"total": total_duplicadas, "filas": filas_duplicadas}               #novena línea
+```
+
+¿Cuál es el propósito de conocer los duplicados? Si es simplemente saber si existen, el código inicial satisfacía el requerimiento. Pero ¿de verdad es un dato útil? Esta última es la pregunta que generó el cambio de diseño. Conocer qué cantidad de filas hay duplicadas no era un dato especialmente útil, es decir, en términos de requerimientos no funcionales el código era insuficiente. En un DataSet mediano, comparar fila por fila para encontrar cuáles son duplicadas es inviable. 
+
+Así, entonces, la pregunta cambia: ¿se puede actuar y tomar decisiones con un número que solo me indica la cantidad de filas duplicadas que hay? La respuesta es no:
+    - Sin sus índices no se pueden comparar para saber el motivo de la duplicación o si de verdad deben estar duplicadas.
+    - Sin sus índices, no se pueden eliminar a menos de que se encuentren, lo cual es inviable en un DataSet mediano o grande.
+
+De esta manera, apareció un elemento crucial que el código debía devolver: los índices de las filas duplicadas.
+
+1. Defino el método reporte_duplicados().
+2. Genero una máscara booleana para hallar los duplicados. Uso el argumento keep=False en ```.duplicated(keep=False)```. Por defecto, keep="first", es decir, marca la primera fila que coincida con una posterior como False y a la segunda como True (lo cual es lógico porque la primera aparición de una fila que se duplica no es duplicada de ninguna). Con ```.duplicated(keep=False)``` se marcan todas las filas que son duplicadas, lo que es útil para conocer sus índices.
+3. Si se está analizando un "DataFrame en memoria" (definido así desde el inicio de la clase), se detecta el índice de las filas duplicadas por medio de la aplicación de la máscara booleana a self.df. El resultado se convierte a lista para que se visualice mejor, pues si se mantiene pandas.Index, se muestra el dtype, que es un dato que no le interesa al usuario final.
+4. Se hace el conteo del total de elementos duplicados con ```mascara_duplicados.sum()```. Se usa int, pues ```.sum()```en una máscara booleana devuelve numpy.int64 en el output, lo que es información que no es útil para el usuario. Además, se usa ```.sum()``` sobre la máscara booleana porque las listas y los pandas.Index no tienen atributo ```.sum()```, pero, además, porque al aplicar ```.sum()``` sobre una máscara booleana compuesta de True/False, obtengo exactamente la cantidad de duplicados, pues True==1 y False==0.
+5. Se aplica la misma lógica en las líneas de código de la sexta a la octava, solo que al índice obtenido se le suman 2 unidades, pues esta es la rama del condicional que sirve para analizar archivos .csv o .xlsx. Estos archivos suelen tener encabezado, entonces el índice de las filas se corre 2 unidades con respecto a un DataFrame, pues en una spreadsheet la primera fila tiene índice 1, no 0, y la fila 1 suele ser el encabezado, entonces los datos reales suelen comenzar desde la fila 2.
+6. Se devuelve un diccionario así: total es la llave para el valor del total de duplicados; y filas es la llave para la lista que contiene el índice de las filas duplicadas.
 
 # Método reporte_tipos_inconsistentes():
 
