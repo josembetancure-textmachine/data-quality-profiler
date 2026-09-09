@@ -60,9 +60,52 @@ class DataProfiler:
             col: self.df[col][mascara_outliers[col]]
             for col in columnas_numericas
         }
-        total_outliers = sum(len(serie)for serie in valores_outliers.values())
+        total_outliers = sum(len(serie) for serie in valores_outliers.values())
         return {"total": total_outliers, "valores": valores_outliers}
 
+    def generar_reporte(self):
+        duplicadas = self.reporte_duplicados()
+        cantidad_duplicadas = duplicadas["total"]
+        if duplicadas["total"] == 0:
+            duplicadas = "Sin filas duplicadas"
+        else:
+            duplicadas = pd.DataFrame(duplicadas["filas"], columns=["Fila"])
+
+        resultado_inconsistentes = self.reporte_tipos_inconsistentes().items()
+        inconsistentes = pd.Series({col: cantidad for col, cantidad in resultado_inconsistentes if cantidad > 1})
+
+        outliers = self.reporte_outliers()
+        cantidad_outliers = outliers["total"]
+        lista_filas_outliers=[]
+        if outliers["total"] == 0:
+            outliers = "Sin outliers"
+        else:
+            for col, serie in outliers["valores"].items():
+                for fila, valor in serie.items():
+                    lista_filas_outliers.append({"Columna": col, "Fila": fila, "Valor": valor})
+            lista_filas_outliers=pd.DataFrame(lista_filas_outliers)
+
+
+        informe = (f"""# Metadata:
+- Archivo analizado: {self.source}
+
+# Reporte de datos nulos:
+{self.reporte_nulos()}
+
+# Reporte de datos duplicados:
+**- Cantidad de filas duplicadas:** {cantidad_duplicadas}
+**- Filas duplicadas:**
+{duplicadas}
+
+# Reporte de tipos inconsistentes:
+{inconsistentes}
+
+# Reporte de outliers:
+**- Total de outliers:** {cantidad_outliers}
+**- Columna, fila y valor de los outliers:**
+{lista_filas_outliers}""")
+
+        return informe
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -70,3 +113,7 @@ if __name__ == "__main__":
         sys.exit()
     else:
         df = sys.argv[1]
+
+        with open("ejemplo_reporte.md","w") as ejemplo:
+            contenido_informe = DataProfiler(df).generar_reporte()
+            ejemplo.write(contenido_informe)
