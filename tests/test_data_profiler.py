@@ -33,7 +33,7 @@ def test_reporte_duplicados(profiler, dataframe_test):
     assert resultado == {"total": 2, "filas": [0, 2]}
     pd.testing.assert_frame_equal(dataframe_test, dataframe_test_copy)
 
-def test_test_reporte_tipos_inconsistentes(profiler, dataframe_test):
+def test_reporte_tipos_inconsistentes(profiler, dataframe_test):
     dataframe_test_copy = dataframe_test.copy()
     resultado = profiler.reporte_tipos_inconsistentes()
     assert resultado == {"a": 1, "b": 2, "c": 1, "d": 1}
