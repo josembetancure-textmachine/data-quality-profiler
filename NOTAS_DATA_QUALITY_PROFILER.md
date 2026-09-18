@@ -141,7 +141,7 @@ Sirve para evaluar las filas duplicadas dentro del DataFrame.
     - Suponiendo que la fila con índice 0 sea exactamente igual a la fila con índice 3, por ejemplo, ```.duplicated()``` marcará la fila con índice 3 como True. Parecería, entonces, que soy hay una fila duplicada cuando en realidad son dos, pero es el comportamiento por defecto de esta función cuando no tiene parámetros (marca como True la fila de índice 3 por ser la duplicada de la fila con índice 0 que, al ser la primera, no es duplicada de ninguna). El parámetro keep es el que determina este comportamiento. Por defecto, es igual a "first". Sin embargo, si es igual a False, marca todas las duplicadas (para el caso, marcaría como True tanto la fila de índice 0 como la fila de índice 3); es útil cuando necesito saber, por ejemplo, el índice de las filas duplicadas. keep también puede ser igual a "last", el cual invierte el comportamiento por defecto (es decir, marcaría la fila con índice 3 como False y la fila con índice 0 como True).
     - Tiene otros parámetros como subset, que sirve para hacer el conteo de duplicados pero restringido a los valores de las columnas indicadas. Por defecto, ```.duplicated()``` opera a nivel de todas las columnas.
 
-**Iteración del código sobre decisiones de diseño:**
+## **Iteración del código sobre decisiones de diseño:**
 
 ```python
     def reporte_duplicados(self):                                                   #primera línea
@@ -270,6 +270,7 @@ Sirve para detectar los elementos por columna que son outliers, es decir, valore
         total_outliers = sum(len(serie) for serie in valores_outliers.values())     #décima línea
         return {"total": total_outliers, "valores": valores_outliers}               #onceava línea
 ```
+## **Explicación del código:**
 1. Se define el método reporte_outliers.
 2. Se definen las columnas numéricas del DataSet, es decir, aquellas que tienen valores de tipo int64 y float64.
 3. Se define el cuartil 1 con ```.quantile()```. Un cuartil consiste en agrupar los datos en 4 grupos, pero con 3 puntos de corte. Estos puntos de corte son:
@@ -333,7 +334,7 @@ def generar_reporte(self):                                                      
 
         return informe                                                                                              #líneas restantes
 ```
-
+## **Explicación del código:**
 1. Se define el método generar_reporte().
 2. Como reporte_nulos() genera un pd.Series que ya es útil por sí mismo, este método pudo volcarse directamente en la variable "informe". Por lo mismo, generar_reporte() comienza operando sobre el resultado de reporte_duplicados(), así:
     - Se guarda el resultado del método reporte_duplicados() en la variable "duplicadas", de manera tal que esta variable sirva para operar con el diccionario que este método devuelve sin tener que llamar otra vez al método en sí. Se llama una vez y se preserva su resultado en una variable.
@@ -378,3 +379,148 @@ total  filas
 
 5. informe simplemente es la variable que contiene el reporte formateado como texto. Se usan triple comillas para que la indentación no sea un problema, pues si no se hace así, el reporte queda tabulado con la misma indentación de Python, lo cual se podría resolver también con textwrap.dedent()
 6. La función devuelve informe, que es de donde el bloque if __main__ en with open captura la información para generar el archivo.
+
+# pytest
+
+A continuación, se describe el código de pytest.
+
+**Notas:** se usa conftest.py desde la carpeta principal del proyecto (en la que se aloja data_profiler.py, es decir, el pipeline completo) para que Python pueda importar su contenido a test_data_profiler.py, que se encuentra en data-quality_profiler/tests.
+
+## imports y decoradores fixture:
+
+```python
+import pandas as pd                                                 #primera línea
+import pytest                                                       #segunda línea
+
+from data_profiler import DataProfiler                              #tercera línea
+
+@pytest.fixture(scope = "module")                                   #cuarta línea
+def dataframe_test():                                               #quinta línea
+    df = pd.DataFrame({"a": [1, 2, 1, pd.NA, 3, 4, 5, 6],           #sexta línea
+                       "b": [1, 3, 1, "z", 5, 6, 7, 8], 
+                       "c": [1, 4, 1, 7, 2, 3, 4, 5], 
+                       "d": [10, 11, 10, 9, 12, 8, -50, 100]
+                       })
+    return df                                                       #séptima línea
+
+@pytest.fixture(scope = "module")                                   #octava línea
+def profiler(dataframe_test):                                       #novena línea
+    profiler = DataProfiler(dataframe_test)                         #décima línea
+    return profiler                                                 #undécima línea
+```
+### **Explicación del código:**
+1. De la línea 1 a la 3 se hacer los imports necesarios para los tests.
+2. Se define el decorador fixture con scope = "module".
+    - ¿Por qué un fixture? Los fixture son una herramienta que permite "fijar" un caso de prueba que puede ser reutilizado por cuantos tests lo necesiten, de manera que se evita tener que introducir el input de prueba a mano por test. En términos simples: se construye un caso de prueba una sola vez que se puede reutilizar a conveniencia sin tener que hardcodear el mismo caso varias veces.
+    - ¿Y por qué no una variable? Porque las variables funcionan a nivel del módulo y cada test puede introducir una mutación sobre ella. Si defino la variable X, por ejemplo, y la utilizo en un test que la mute, obtendré la variable X diferente a la original. Si en el test siguiente introduzco X, en realidad el input es el resultado del test anterior. En otro sentido, una variable no resuelve el problema de los casos de prueba que se deben reusar.
+    - ¿Y el scope? Son 3:
+        - "function": funciona a nivel de cada función definida. Evita la mutación del objeto original, pues este se reconstruye tantas veces como tests lo utilicen. Es útil cuando cada test necesita el input original. Su desventaja radica en el tiempo de ejecución: al tener que reconstruir el objeto varias veces, aquel se puede ver afectado.
+        - "module": funciona a nivel del módulo. No evita la mutación del objeto original. El objeto original se construye una sola vez y cada test puede introducir una mutación en el mismo, de manera que un test posterior a uno que haya mutado el objeto original, recibirá la versión mutada de este último. Es útil cuando ninguno
+        - "session": funciona igual a "module", pero a nivel de la sesión.
+        - Entonces ¿por qué "module" para esta prueba?: porque ninguno de los métodos de la clase DataProfiler muta el objeto original, por lo que "module" es seguro: cada test recibirá una copia fresca del objeto sin los peligros de la mutación. Para el caso, su ventaja radica en el tiempo de ejecución, pues el objeto se construye una sola vez.
+3. Se define la función que construye el objeto de prueba.
+4. Se construye un DataFrame con casos conocidos: 2 filas duplicadas, 2 valores outliers, 1 columna con tipos inconsistentes y 1 valor nulo.
+5. Esta función devuelve el objeto creado.
+6. Se construye otro fixture con scope = "module" por las razones ya explicadas. Este es un fixture anidado que se construye con lo retornado por el fixture anterior.
+7. Se define la función profiler con el parámetro que devolvió la función anterior. La sintaxis ```def profiler(dataframe_test):``` no significa que profiler llame y ejecute directamente a la función anterior. Nunca se llama directamente a la función, sino al valor que retorna.
+8. Esta función crea la variable profiler, la cual contiene la clase DataProfiler aplicada al DataFrame de prueba.
+9. La función devuelve profiler.
+
+## def test_reporte_nulos y def test_no_muta_original_nulos:
+
+```python
+def test_reporte_nulos(profiler):                                       #primera línea
+    serie_nulos = profiler.reporte_nulos()                              #segunda línea
+    total_nulos = sum(value for label, value in serie_nulos.items())    #cuarta línea
+    assert total_nulos == 1                                             #quinta línea
+
+def test_no_muta_original_nulos(profiler, dataframe_test):              #sexta línea
+    dataframe_test_copy = dataframe_test.copy()                         #séptima línea
+    profiler.reporte_nulos()                                            #octava línea
+    pd.testing.assert_frame_equal(dataframe_test, dataframe_test_copy)  #novena línea
+```
+### **Explicación del código:**
+1. Se define el test para probar el método reporte_nulos() de DataProfiler.
+2. reporte_nulos() devuelve un objeto pandas.Series que se captura en la variable serie_nulos, la cual es el resultado de aplicar el método reporte_nulos() al fixture profiler.
+3. Para saber si el método funciona o no, no es necesario hacer assert del resultado total de reporte_nulos(), sino solo del total de nulos que devuelve. El objeto construído para esta prueba tiene un solo valor nulo.
+4. Se captura el total de nulos en serie_nulos, es decir, se omite el índice.
+5. Se compara el valor capturado en total_nulos con 1, que es exactamente la cantidad de nulos que tiene el objeto original.
+6. Se construye otro test para demostrar que reporte_nulos() no muta el objeto original. Sus parámetros son los valores devueltos por las funciones fixture definidas al comienzo.
+7. Se genera una copia del objeto original.
+8. Se ejecuta el método reporte_nulos() sobre profiler. No se guarda en nada, pues para el test no interesa el resultado, solo que se ejecute para demostrar que el objeto original no muta.
+9. Se compara el objeto original con su copia. Si reporte_nulos() hubiera mutado el objeto original, dataframe_test sería diferente a su copia y el test fallaría. De aquí en adelante, la comprobación de no-mutación se simplifica.
+
+**La filosofía del test es probar el caso mínimo que garantiza que todo funciona correctamente. En este caso, por ejemplo, si el total es igual a 1 es imposible que el índice este mal, pues en todo el DataFrame de prueba solo hay un valor nulo en una posición fija, inmutable. No se necesita, por tanto, comprobar el índice. Es posible que esta filosofía no se haya segudio al pie de la letra en los demás tests, pero se justifica como práctica de sintaxis y de entender qué tipo de objeto devuelve cada método de DataProfiler.**
+
+## def test_reporte_duplicados:
+
+```python   
+def test_reporte_duplicados(profiler, dataframe_test):                  
+    dataframe_test_copy = dataframe_test.copy()                         
+    resultado = profiler.reporte_duplicados()                           
+    assert resultado == {"total": 2, "filas": [0, 2]}                   
+    pd.testing.assert_frame_equal(dataframe_test, dataframe_test_copy)  
+```
+### **Explicación del código:**
+No es necesario detenerse en la explicación de este código, pues puede entenderse como una unión del test anterior: se compara el resultado del método reporte_duplicados() sobre profiler con los casos conocidos del DataFrame original y, al mismo tiempo, se comprueba que reporte_duplicados() no muta el objeto.
+
+## def test_reporte_tipos_inconsistestentes:
+
+```python
+def test_test_reporte_tipos_inconsistentes(profiler, dataframe_test):
+    dataframe_test_copy = dataframe_test.copy()
+    resultado = profiler.reporte_tipos_inconsistentes()
+    assert resultado == {"a": 1, "b": 2, "c": 1, "d": 1}
+    pd.testing.assert_frame_equal(dataframe_test, dataframe_test_copy)
+```
+### **Explicación del código:**
+Al igual que el anterior, no es necesario detenerse en la explicación.
+
+## def test_reporte_outliers:
+
+```python
+def test_reporte_outliers(profiler, dataframe_test):                                                                #primera línea
+    dataframe_test_copy = dataframe_test.copy()                                                                     #segunda línea
+    resultado = profiler.reporte_outliers()                                                                         #tercera línea
+    assert resultado["total"] == 2                                                                                  #cuarta línea
+    pd.testing.assert_series_equal(resultado["valores"]["c"], pd.Series([], name = "c", dtype = "int64"))           #quinta línea
+    pd.testing.assert_series_equal(resultado["valores"]["d"], pd.Series([-50, 100], name = "d", index = [6, 7]))    #sexta línea
+    pd.testing.assert_frame_equal(dataframe_test, dataframe_test_copy)                                              #octava línea
+```
+### **Explicación del código:**
+Este sí es un caso especial que requiere explicación:
+1. Se define el test para el método reporte_outliers() con dos parámetros.
+2. Se genera una copia del DataFrame original.
+3. Se compara el resultado (filtrado por la llave "total" del diccionario que construye reporte_outliers) de aplicar reporte_outliers() sobre profiler con los 2 valores conocidos de outliers en el DataFrame original.
+4. En lo sucesivo, es importante entender lo que devuelve reporte_outliers(): un diccionario con dos llaves:
+    - "total": cuyo valor es el total de outliers del DataFrame original.
+    - "valores: que a su vez se compone de un diccionario cuyas llaves son las columnas donde se encontraron los outliers y sus valores son pandas.Series que contiene el índice del outlier y su valor.
+    - Además, y muy importante, todo el funcionamiento de reporte_outliers() se basa en que SOLO analiza las columnas numéricas del DataFrame original, es decir, aquellas cuyo dtype es un número. Esto quiere decir que cualquier columna numérica aparecerá en lo devuelto por valores_outliers(), incluso si ninguna de esas columnas tiene, en efecto, un outliers, en cuyo caso la Series de la llave es vacía. Esto último genera otro incoveniente para la prueba: si la Series es vacía, su dtype ya no es númerico, sino "object": esto puede hacer que la prueba falle, pues el test también se fija en el dtype para determinar la paridad entre la Series esperada y la Series obtenida.
+    - El test, entonces, consiste en que el valor esperado es igual a ```resultado["valores"]["c"]``` del DataFrame de prueba. ¿Por qué es necesaria esta línea? Porque la columna "c" es numérica, aunque no tenga outliers, por eso se compara con una Series vacía en la columna "c" y se fija su dtype a "int64" para que el dtype "object" no haga que el test falle.
+    - ¿Y por qué no un ciclo for que construya un diccionario igual al que genera reporte_outliers() y hacer así la comparación? Porque es mucho código para solo dos comparaciones. Es más eficiente escribirlas directamente que plantear esa lógica con for.
+5. La misma lógica se aplica en esta línea: la columna "d" sí tiene outliers, por eso se compara con una Series no nula, por la columna "d" y por los índices exactos en los que están esos outliers.
+6. Se comprueba que reporte_outliers() no muta el DataFrame original.
+
+## def test_generar_reporte:
+
+```python
+def test_generar_reporte(profiler, dataframe_test):                                                             #primera línea
+    dataframe_test_copy = dataframe_test.copy()                                                                 #segunda línea
+    resultado = profiler.generar_reporte()                                                                      #tercera línea
+    assert str(profiler.reporte_nulos())  in resultado                                                          #cuarta línea
+    assert f"**- Cantidad de filas duplicadas:** {profiler.reporte_duplicados()["total"]}" in resultado         #quinta línea
+    resultado_inconsistentes = profiler.reporte_tipos_inconsistentes().items()                                  #sexta línea
+    inconsistentes = pd.Series({col: cantidad for col, cantidad in resultado_inconsistentes if cantidad > 1})   #séptima línea
+    assert str(inconsistentes) in resultado                                                                     #octava línea
+    assert f"**- Total de outliers:** {profiler.reporte_outliers()["total"]}" in resultado                      #novena línea
+    pd.testing.assert_frame_equal(dataframe_test, dataframe_test_copy)                                          #décima línea
+```
+### **Explicación del código:**
+1. Sobra explicar las tres primeras líneas.
+2. Como generar_reporte() devuelve un str completo, lo que se compara es que cada método devuelve algo que constituya una cadena de texto en cualquier lugar de lo que devuelve generar_reporte().
+3. El caso de duplicados es especial, pues es comparar un int que puede aparecer en cualquier lugar de lo devuelto. Si ese int está en cualquier posición del resultado, entonces el test pasa, pero eso no garantiza que ese valor estuviera en la posición correcta. Por eso se añadió el contexto ```f"**- Cantidad de filas duplicadas:**```.
+4. Inconsistentes también es un caso especial. En vez de reconstruir exactamente como cadena de texto el resultado de reporte_tipos_inconsistentes(), obtengo un valor representativo del mismo y lo busco en resultado.
+5. La lógica de outliers es la misma del punto 3.
+6. Se compara que ninguno de estos 5 métodos muta el DataFrame original.
+
+**En este caso, la filosofía no es reconstruir a mano lo que devuelve generar_reporte(), pues es tedioso en la medida en que tengo que reconstruir todo el informe a mano. Más bien, se compara casos representativos que demuestren que el método funciona. La filosofía del caso mínimo de prueba.**
