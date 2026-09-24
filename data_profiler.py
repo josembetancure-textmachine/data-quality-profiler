@@ -26,7 +26,11 @@ class DataProfiler:
             FileNotFoundError: si la ruta pasada no lleva a ningún archivo.
         '''
         if not isinstance(df, pd.DataFrame):
-            if Path(df).suffix == ".csv":
+            if not isinstance(df, str):
+                raise ValueError("La ruta del archivo a analizar contiene un error o es un formato no admitido."
+                                 " Solo se admiten formatos .csv, .xlsx y DataFrames."
+                                 )
+            elif Path(df).suffix == ".csv":
                 self.source = df
                 df = pd.read_csv(df)
             elif Path(df).suffix == ".xlsx":
