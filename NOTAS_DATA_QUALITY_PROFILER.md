@@ -493,10 +493,10 @@ def test_reporte_duplicados(profiler, dataframe_test):
 ### **Explicación del código:**
 No es necesario detenerse en la explicación de este código, pues puede entenderse como una unión del test anterior: se compara el resultado del método reporte_duplicados() sobre profiler con los casos conocidos del DataFrame original y, al mismo tiempo, se comprueba que reporte_duplicados() no muta el objeto.
 
-## def test_reporte_tipos_inconsistestentes:
+## def test_reporte_tipos_inconsistentes:
 
 ```python
-def test_test_reporte_tipos_inconsistentes(profiler, dataframe_test):
+def test_reporte_tipos_inconsistentes(profiler, dataframe_test):
     dataframe_test_copy = dataframe_test.copy()
     resultado = profiler.reporte_tipos_inconsistentes()
     assert resultado == {"a": 1, "b": 2, "c": 1, "d": 1}
