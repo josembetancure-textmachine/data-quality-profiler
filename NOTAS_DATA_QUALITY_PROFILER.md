@@ -555,6 +555,21 @@ Este sí es un caso especial que requiere explicación:
 5. La misma lógica se aplica en esta línea: la columna "d" sí tiene outliers, por eso se compara con una Series no nula, por la columna "d" y por los índices exactos en los que están esos outliers.
 6. Se comprueba que reporte_outliers() no muta el DataFrame original.
 
+## def test_reporte_duplicados_offset_csv
+
+```python
+def test_reporte_duplicados_offset_csv(tmp_path):
+    '''Verifica que reporte_duplicados() detecte las filas duplicadas del DataFrame original con el offset de +2 cuando se trata de .csv o .xlsx'''
+    df_prueba = pd.DataFrame({"a": [1, 2, 1]})  # fila 0 y fila 2 son duplicadas
+    archivo = tmp_path / "prueba.csv"
+    df_prueba.to_csv(archivo, index=False)
+    profiler_csv = DataProfiler(str(archivo))
+    resultado = profiler_csv.reporte_duplicados()
+    assert resultado == {"total": 2, "filas": [2, 4]}
+```
+### **Explicación del código:**
+Se crea un DataFrame temporal y se aplica tmp_path para crear una ruta temporal que simula ese mismo DataFrame en formato .csv para comprobar que el offset de +2 se cumpla cuando se trata de archivos .csv. Para el caso de .xlsx, este test es extrapolable pues funciona bajo la mismo lógica.
+
 ## def test_generar_reporte:
 
 ```python
