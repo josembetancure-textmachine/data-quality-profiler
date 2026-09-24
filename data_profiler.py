@@ -134,6 +134,8 @@ class DataProfiler:
 
         resultado_inconsistentes = self.reporte_tipos_inconsistentes().items()
         inconsistentes = pd.Series({col: cantidad for col, cantidad in resultado_inconsistentes if cantidad > 1})
+        if inconsistentes.empty:
+            inconsistentes = "Sin tipos inconsistentes"
 
         outliers = self.reporte_outliers()
         cantidad_outliers = outliers["total"]
