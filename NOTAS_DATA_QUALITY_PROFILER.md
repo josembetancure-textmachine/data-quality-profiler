@@ -96,6 +96,31 @@ Capturar el str que contiene el argumento exacto que se le dio a la clase tiene 
 - **Argumento:** por el contrario, el argumento no existe por sí mismo sino hasta que se llama. Puede pensarse en el argumento como una manifestación concreta del parámetro en un momento determinado. Diferentes argumentos pueden "llenar" un mismo parámetro cada vez que se llaman.
 - **Atributo:** es un concepto muy ligado a las clases. No necesariamente tienen que ser la manifestación de un argumento que "llena" un parámetro de una clase, pues pueden ser valores fijos, no variables. Más bien, el concepto se refiere a cualquier dato de una instancia (es decir, la manifestación de una clase) al que puede accederse via self. Por ejemplo, ```self.df=df```viene de la transformación de un argumento, pero ```self.source="DataFrame en memoria"```es un dato fijo que no viene de ningún argumento y que, además, tampoco se definió como parámetro. 
 
+**Iteración:**
+Se cambió el método __init__ para cubrir el caso de error en el que el parámetro pasado a la clase no sea str.
+```python
+        if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, str):
+                raise ValueError("La ruta del archivo a analizar contiene un error o es un formato no admitido."
+                                 " Solo se admiten formatos .csv, .xlsx y DataFrames."
+                                 )
+            elif Path(df).suffix == ".csv":
+                self.source = df
+                df = pd.read_csv(df)
+            elif Path(df).suffix == ".xlsx":
+                self.source = df
+                df = pd.read_excel(df)
+            else:
+                raise ValueError("La ruta del archivo a analizar contiene un error o es un formato no admitido."
+                                 " Solo se admiten formatos .csv, .xlsx y DataFrames."
+                                 )
+        else:
+            self.source = "DataFrame en memoria"
+            df = pd.DataFrame(df)
+
+        self.df = df
+```
+
 # Método __repr__():
 
 Es una práctica indispensable cuando se trabaja con clases. La idea es que este método devuelva un _output_ tipo str, pero que se lea como código que pueda recrear un objeto de Python. Es importante para hacer visible el objeto durante el _debugging_/desarollo cada vez que Python necesita imprimirlo. Sin __repr__, cuando trato de imprimir un objeto, obtengo un _output_ ilegible e inútil. Por el contrario, con __repr__ puedo definir qué mostrará esa impresión (datos útiles y legibles).
