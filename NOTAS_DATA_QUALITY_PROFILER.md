@@ -173,6 +173,19 @@ De esta manera, apareció un elemento crucial que el código debía devolver: lo
 5. Se aplica la misma lógica en las líneas de código de la sexta a la octava, solo que al índice obtenido se le suman 2 unidades, pues esta es la rama del condicional que sirve para analizar archivos .csv o .xlsx. Estos archivos suelen tener encabezado, entonces el índice de las filas se corre 2 unidades con respecto a un DataFrame, pues en una _spreadsheet_ la primera fila tiene índice 1, no 0, y la fila 1 suele ser el encabezado, entonces los datos reales suelen comenzar desde la fila 2.
 6. Se devuelve un diccionario así: "total" es la llave para el valor del total de duplicados; y "filas" es la llave para la lista que contiene el índice de las filas duplicadas.
 
+**Iteración:**
+total_duplicados se sacó del bloque if/else, pues solo se debe computar una vez. El código quedó así:
+
+```python
+        mascara_duplicados = self.df.duplicated(keep=False)
+        total_duplicadas = int(mascara_duplicados.sum())
+        if self.source == "DataFrame en memoria":
+            filas_duplicadas = (self.df[mascara_duplicados].index).tolist()
+        else:
+            filas_duplicadas = (self.df[mascara_duplicados].index + 2).tolist()
+        return {"total": total_duplicadas, "filas": filas_duplicadas}
+```
+
 # Método reporte_tipos_inconsistentes():
 
 Sirve para detectar aquellas columnas que tienen diferentes tipos de datos mezclados.
