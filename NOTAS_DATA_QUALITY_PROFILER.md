@@ -380,6 +380,19 @@ total  filas
 5. informe simplemente es la variable que contiene el reporte formateado como texto. Se usan triple comillas para que la indentación no sea un problema, pues si no se hace así, el reporte queda tabulado con la misma indentación de Python, lo cual se podría resolver también con textwrap.dedent()
 6. La función devuelve informe, que es de donde el bloque if __main__ en with open captura la información para generar el archivo.
 
+**Iteración:**
+Después de:
+```python
+       resultado_inconsistentes = self.reporte_tipos_inconsistentes().items()                                       
+        inconsistentes = pd.Series({col: cantidad for col, cantidad in resultado_inconsistentes if cantidad > 1}) 
+```
+Se añadieron las líneas:
+```python
+if inconsistentes.empty:
+    inconsistentes = "Sin tipos inconsistentes"
+```
+Con el fin de proporcionarle un dato útil al usuario en vez de una serie vacía.
+
 # pytest
 
 A continuación, se describe el código de pytest.
