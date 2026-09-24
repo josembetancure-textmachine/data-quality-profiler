@@ -71,6 +71,15 @@ def test_reporte_outliers(profiler, dataframe_test):
     pd.testing.assert_series_equal(resultado["valores"]["d"], pd.Series([-50, 100], name = "d", index = [6, 7]))
     pd.testing.assert_frame_equal(dataframe_test, dataframe_test_copy)
 
+def test_reporte_duplicados_offset_csv(tmp_path):
+    '''Verifica que reporte_duplicados() detecte las filas duplicadas del DataFrame original con el offset de +2 cuando se trata de .csv o .xlsx'''
+    df_prueba = pd.DataFrame({"a": [1, 2, 1]})  # fila 0 y fila 2 son duplicadas
+    archivo = tmp_path / "prueba.csv"
+    df_prueba.to_csv(archivo, index=False)
+    profiler_csv = DataProfiler(str(archivo))
+    resultado = profiler_csv.reporte_duplicados()
+    assert resultado == {"total": 2, "filas": [2, 4]}
+
 def test_generar_reporte(profiler, dataframe_test):
     '''Verifica que generar_reporte() incluya los resultados de los cuatro métodos de reporte en el string final, sin modificar el DataFrame original.'''
     dataframe_test_copy = dataframe_test.copy()
