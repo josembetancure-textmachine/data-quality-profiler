@@ -69,12 +69,11 @@ class DataProfiler:
             memoria", o cada índice +2 si self.source es un archivo .csv o .xlsx.
         '''
         mascara_duplicados = self.df.duplicated(keep=False)
+        total_duplicadas = int(mascara_duplicados.sum())
         if self.source == "DataFrame en memoria":
             filas_duplicadas = (self.df[mascara_duplicados].index).tolist()
-            total_duplicadas = int(mascara_duplicados.sum())
         else:
             filas_duplicadas = (self.df[mascara_duplicados].index + 2).tolist()
-            total_duplicadas = int(mascara_duplicados.sum())
         return {"total": total_duplicadas, "filas": filas_duplicadas}
 
     def reporte_tipos_inconsistentes(self):
