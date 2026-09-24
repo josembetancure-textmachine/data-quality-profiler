@@ -173,7 +173,7 @@ class DataProfiler:
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Falta almenos un argumento. Debe ejecutar la herramienta así:\npython3 data_profiler.py archivo_a_analizar(con su extensión)")
-        sys.exit()
+        sys.exit(1)
     else:
         df = sys.argv[1]
 
