@@ -47,6 +47,9 @@ Para este caso, se usa "w", pues se garantiza la creación de un archivo si no e
 
 3. Se usa ```.write()```sobre "ejemplo", es decir, el nombre variable que se le dio al archivo a crear. El argumento que recibe ```.write()```es el contenido_informe capturado en el paso anterior. No se usa este ```.write()``` como el return del método generar_reporte(), primero, para mantener las responsabilidades separadas (es decir, qué hace cada parte del script) y, segundo, porque por allí devolvería el conteo de caracteres y no el reporte propiamente dicho. ```.write()``` siempre devuelve dos cosas: el conteo de caracteres y, al mismo tiempo, escribe sobre el archivo lo que reciba como argumento. Ya veremos más adelante esto último.
 
+**Iteración:**
+Se cambió ```sys.exit()``` por ```sys.exit(1)``` para no terminar con un código de ejecución 0, que equivale a ejecución exitosa.
+
 # class DataProfiler:
 
 ```python
