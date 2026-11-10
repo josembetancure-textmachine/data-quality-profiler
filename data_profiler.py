@@ -252,7 +252,7 @@ if __name__ == "__main__":
         sys.exit(1)
     else:
         df = sys.argv[1]
+        contenido_informe = DataProfiler(df).generar_reporte()
 
-        with open("ejemplo_reporte.md","w") as ejemplo:
-            contenido_informe = DataProfiler(df).generar_reporte()
+        with open("ejemplo_reporte.md", "w") as ejemplo:
             ejemplo.write(contenido_informe)
