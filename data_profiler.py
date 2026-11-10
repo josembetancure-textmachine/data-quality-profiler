@@ -171,6 +171,8 @@ class DataProfiler:
             cuando pasa de 60 filas y que en GitHub se funde en un solo párrafo.
             - Nulos y tipos inconsistentes se muestran completos. Duplicados y outliers pasan por tabla_markdown(), que muestra como máximo
             MAX_FILAS_REPORTE filas y declara el recorte.
+            - Cada resultado que se imprime tiene su propia variable (tabla_outliers, por ejemplo), que no cambia de tipo:
+            así el texto que se asigna es el mismo que se imprime.
         '''
         if self.source == "DataFrame en memoria":
             archivo_analizado = self.source
@@ -197,14 +199,14 @@ class DataProfiler:
 
         outliers = self.reporte_outliers()
         cantidad_outliers = outliers["total"]
-        lista_filas_outliers = []
-        if outliers["total"] == 0:
-            outliers = "Sin outliers"
+        if cantidad_outliers == 0:
+            tabla_outliers = "Sin outliers"
         else:
+            lista_filas_outliers = []
             for col, serie in outliers["valores"].items():
                 for fila, valor in serie.items():
                     lista_filas_outliers.append({"Columna": col, "Fila": fila + self._desplazamiento_filas(), "Valor": valor})
-            lista_filas_outliers = tabla_markdown(pd.DataFrame(lista_filas_outliers))
+            tabla_outliers = tabla_markdown(pd.DataFrame(lista_filas_outliers))
 
         informe = (f"""# Metadata:
 
@@ -228,7 +230,7 @@ class DataProfiler:
 
 - **Total de outliers:** {cantidad_outliers}
 
-{lista_filas_outliers}
+{tabla_outliers}
 """)
 
         return informe

@@ -90,6 +90,8 @@ def test_generar_reporte(profiler, dataframe_test):
     assert f"- **Cantidad de filas duplicadas:** {profiler.reporte_duplicados()["total"]}" in resultado
     assert re.search(r"\|\s*b\s*\|\s*2\s*\|", resultado)
     assert f"- **Total de outliers:** {profiler.reporte_outliers()["total"]}" in resultado
+    assert re.search(r"\|\s*d\s*\|\s*6\s*\|\s*-50\s*\|", resultado)
+    assert re.search(r"\|\s*d\s*\|\s*7\s*\|\s*100\s*\|", resultado)
     assert "dtype:" not in resultado
     pd.testing.assert_frame_equal(dataframe_test, dataframe_test_copy)
 
@@ -122,3 +124,11 @@ def test_generar_reporte_offset_outliers_csv(tmp_path):
     df_prueba.to_csv(archivo, index=False)
     resultado = DataProfiler(str(archivo)).generar_reporte()
     assert re.search(r"\|\s*v\s*\|\s*9\s*\|\s*1000\s*\|", resultado)
+
+def test_generar_reporte_sin_outliers():
+    '''Verifica que, sin outliers, la sección diga "Sin outliers" en vez de imprimir una lista vacía (A-01).'''
+    df = pd.DataFrame({"a": [1, 2, 3, 4]})
+    resultado = DataProfiler(df).generar_reporte()
+    seccion_outliers = resultado.split("# Reporte de outliers:")[1]
+    assert "Sin outliers" in seccion_outliers
+    assert "[]" not in seccion_outliers
