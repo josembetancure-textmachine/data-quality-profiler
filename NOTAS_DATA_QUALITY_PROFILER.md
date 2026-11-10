@@ -783,3 +783,25 @@ Y en la plantilla, la línea nueva ```- **Columnas numéricas evaluadas:** {text
 **Verificación**
 
 ```test_generar_reporte_columnas_evaluadas``` y ```test_generar_reporte_sin_columnas_numericas``` fallan con el código anterior y pasan con la corrección. ```pytest -q```: 14 passed.
+
+## H9
+
+En la versión anterior (antes de la auditoría), el constructor comparaba la extensión con ```Path(df).suffix == ".csv"```. La comparación de textos en Python distingue mayúsculas de minúsculas, así que un archivo válido llamado ```DATOS.CSV``` caía en el ```else``` y recibía el mensaje de formato no admitido.
+
+### Solución
+
+```python
+            elif Path(df).suffix.lower() == ".csv":
+            ...
+            elif Path(df).suffix.lower() == ".xlsx":
+```
+
+**Explicación del código:**
+
+1. ```.suffix``` devuelve la extensión tal como está escrita (```".CSV"```), y ```.lower()``` la pasa a minúsculas antes de comparar. Así ```.csv```, ```.CSV``` y ```.Csv``` dan el mismo resultado.
+2. Solo se normaliza la extensión para comparar: el nombre del archivo no cambia, y ```pd.read_csv()``` lo abre con el nombre original.
+3. Con ```.xlsx``` en mayúsculas también funciona: ```pd.read_excel()``` reconoce el formato por el contenido del archivo, no por la extensión.
+
+**Verificación**
+
+```test_extension_en_mayusculas``` falla con el código anterior y pasa con la corrección. ```pytest -q```: 15 passed.
