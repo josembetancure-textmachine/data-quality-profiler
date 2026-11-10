@@ -154,3 +154,12 @@ def test_extension_en_mayusculas(tmp_path):
     pd.DataFrame({"a": [1, 2, 3]}).to_csv(archivo, index=False)
     profiler_csv = DataProfiler(str(archivo))
     assert len(profiler_csv.df) == 3
+
+def test_cli_error_no_borra_reporte_anterior(tmp_path):
+    '''Verifica que, si el análisis falla, el CLI no deje vacío el ejemplo_reporte.md que ya existía (H8).'''
+    reporte = tmp_path / "ejemplo_reporte.md"
+    reporte.write_text("reporte anterior")
+    script = Path(__file__).resolve().parent.parent / "data_profiler.py"
+    ejecucion = subprocess.run([sys.executable, str(script), "no_existe.csv"], cwd=tmp_path, capture_output=True, text=True)
+    assert ejecucion.returncode != 0
+    assert reporte.read_text() == "reporte anterior"
