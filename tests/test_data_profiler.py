@@ -91,3 +91,11 @@ def test_generar_reporte(profiler, dataframe_test):
     assert str(inconsistentes) in resultado
     assert f"**- Total de outliers:** {profiler.reporte_outliers()["total"]}" in resultado
     pd.testing.assert_frame_equal(dataframe_test, dataframe_test_copy)
+
+def test_generar_reporte_sin_ruta_local(tmp_path):
+    '''Verifica que el reporte muestre solo el nombre del archivo analizado, y no su ruta completa, aunque se pase una ruta absoluta (A-03).'''
+    archivo = tmp_path / "prueba.csv"
+    pd.DataFrame({"a": [1, 2, 3]}).to_csv(archivo, index=False)
+    resultado = DataProfiler(str(archivo)).generar_reporte()
+    assert "- Archivo analizado: prueba.csv" in resultado
+    assert str(tmp_path) not in resultado

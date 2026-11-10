@@ -127,7 +127,16 @@ class DataProfiler:
             Para el caso de los tipos inconsistentes, se presentan en el informe únicamente las columnas que contienen 2 o más tipos de datos;
             para el caso de outliers, se convierte la información en un DataFrame legible con las columnas "Columna", "Fila" y "Valor" para visualizar los datos
             más fácilmente.
+
+        Notes:
+            - Si los datos vienen de un archivo, el reporte muestra solo su nombre (Path(...).name) y no la ruta completa, para no exponer
+            la estructura de carpetas ni el nombre de usuario de quien ejecuta la herramienta. self.source conserva la ruta completa para __repr__.
         '''
+        if self.source == "DataFrame en memoria":
+            archivo_analizado = self.source
+        else:
+            archivo_analizado = Path(self.source).name
+
         duplicadas = self.reporte_duplicados()
         cantidad_duplicadas = duplicadas["total"]
         if duplicadas["total"] == 0:
@@ -153,7 +162,7 @@ class DataProfiler:
 
 
         informe = (f"""# Metadata:
-- Archivo analizado: {self.source}
+- Archivo analizado: {archivo_analizado}
 
 # Reporte de datos nulos:
 {self.reporte_nulos()}
