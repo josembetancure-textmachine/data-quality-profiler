@@ -173,6 +173,8 @@ class DataProfiler:
             MAX_FILAS_REPORTE filas y declara el recorte.
             - Cada resultado que se imprime tiene su propia variable (tabla_outliers, por ejemplo), que no cambia de tipo:
             así el texto que se asigna es el mismo que se imprime.
+            - La sección de outliers dice sobre qué columnas numéricas se buscaron. Si no hay ninguna, lo dice en vez de reportar
+            un 0 que parecería un resultado.
         '''
         if self.source == "DataFrame en memoria":
             archivo_analizado = self.source
@@ -199,7 +201,15 @@ class DataProfiler:
 
         outliers = self.reporte_outliers()
         cantidad_outliers = outliers["total"]
-        if cantidad_outliers == 0:
+        columnas_evaluadas = [str(col) for col in outliers["valores"]]
+        if columnas_evaluadas:
+            texto_columnas = ", ".join(columnas_evaluadas)
+        else:
+            texto_columnas = "ninguna"
+
+        if not columnas_evaluadas:
+            tabla_outliers = "No hay columnas numéricas: no se buscaron outliers."
+        elif cantidad_outliers == 0:
             tabla_outliers = "Sin outliers"
         else:
             lista_filas_outliers = []
@@ -228,6 +238,7 @@ class DataProfiler:
 
 # Reporte de outliers:
 
+- **Columnas numéricas evaluadas:** {texto_columnas}
 - **Total de outliers:** {cantidad_outliers}
 
 {tabla_outliers}

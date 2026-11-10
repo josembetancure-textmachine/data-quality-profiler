@@ -132,3 +132,15 @@ def test_generar_reporte_sin_outliers():
     seccion_outliers = resultado.split("# Reporte de outliers:")[1]
     assert "Sin outliers" in seccion_outliers
     assert "[]" not in seccion_outliers
+
+def test_generar_reporte_columnas_evaluadas(profiler):
+    '''Verifica que la sección de outliers diga sobre qué columnas numéricas se buscaron (A-06).'''
+    resultado = profiler.generar_reporte()
+    assert "- **Columnas numéricas evaluadas:** c, d" in resultado
+
+def test_generar_reporte_sin_columnas_numericas():
+    '''Verifica que, sin columnas numéricas, el reporte diga que no se buscaron outliers, en vez de mostrar un 0 que parece un resultado (A-06).'''
+    df = pd.DataFrame({"texto": ["a", "b", "c"]})
+    resultado = DataProfiler(df).generar_reporte()
+    assert "- **Columnas numéricas evaluadas:** ninguna" in resultado
+    assert "No hay columnas numéricas: no se buscaron outliers." in resultado
