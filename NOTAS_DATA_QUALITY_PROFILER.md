@@ -593,3 +593,56 @@ def test_generar_reporte(profiler, dataframe_test):                             
 6. Se compara que ninguno de estos 5 métodos muta el DataFrame original.
 
 **En este caso, la filosofía no es reconstruir a mano lo que devuelve generar_reporte(), pues es tedioso en la medida en que tengo que reconstruir todo el informe a mano. Más bien, se compara casos representativos que demuestren que el método funciona. La filosofía del caso mínimo de prueba.**
+
+# Auditoría de código
+
+Durante septiembre y noviembre de 2026, corrí varios agentes de IA (Claude) para que auditaran el proyecto como si fueran auditores externos e independientes: una auditoría el 23 de septiembre (H1 a H5) y una verificación el 4 de noviembre (H6 a H10). A esos hallazgos se suman los puntos de corrección del plan del proyecto (A-01 a A-08). Los hallazgos fueron los siguientes:
+
+| Hallazgo | Qué falla | Gravedad |
+|---|---|---|
+| H1 | `pd.read_excel()` necesita `openpyxl`, que no está en `requirements.txt`. En una instalación limpia, leer cualquier `.xlsx` lanza `ImportError`. | Medio |
+| H2 | Si ninguna columna mezcla tipos, la sección de tipos inconsistentes muestra `Series([], dtype: object)` en lugar de un mensaje legible. | Bajo |
+| H3 | Sin argumentos, el CLI imprime el mensaje de uso pero termina con código de salida 0, como si hubiera funcionado. | Bajo |
+| H4 | `reporte_duplicados()` calcula `total_duplicadas` dos veces, una en cada rama del `if`, con la misma fórmula. | Observación |
+| H5 | Las NOTAS siguen usando el nombre anterior de `test_reporte_tipos_inconsistentes` después de corregirlo en el código. | Observación |
+| H6 | El reporte inserta las tablas con la representación de pandas, que se recorta a 10 filas cuando pasa de 60. Afecta las cuatro secciones: con 61 columnas, la única con nulos (`col_30`) no aparece, y el ejemplo real muestra 10 de 73.051 filas duplicadas. | Medio |
+| H7 | Los duplicados suman 2 al índice para que coincida con la fila del archivo; los outliers no. En un CSV, la misma fila sale como 9 en duplicados y como 7 en outliers. | Medio |
+| H8 | El CLI abre `ejemplo_reporte.md` en modo `"w"` antes de analizar. Si el análisis falla (por ejemplo, con un archivo que no existe), el reporte anterior queda en 0 bytes. | Bajo |
+| H9 | La extensión se compara distinguiendo mayúsculas (`Path(df).suffix == ".csv"`): un archivo válido llamado `DATOS.CSV` se rechaza como formato no admitido. | Bajo |
+| H10 | La nota de la línea 552 dice que la Series vacía de una columna sin outliers pasa a `object`. Es al revés: conserva `int64`, y la que nace `object` es el literal `pd.Series([])`. | Observación |
+| A-01 | `generar_reporte()` asigna "Sin outliers" a la variable `outliers`, pero imprime `lista_filas_outliers`: sin outliers, el reporte muestra `[]`. | Bajo |
+| A-02 | `ejemplo_reporte.md` se generó antes de las correcciones del 24 de septiembre y todavía muestra `Series([], dtype: object)` y `[]`. | Bajo |
+| A-03 | El reporte muestra el argumento tal cual: con una ruta absoluta, expone la estructura de carpetas y el nombre de usuario de quien lo ejecuta. | Bajo |
+| A-04 | El reporte vuelca el texto crudo de pandas, sin tablas ni bloques de código. En GitHub, las líneas seguidas se funden en un solo párrafo. | Bajo |
+| A-05 | El reporte cuenta 73.051 filas duplicadas (con `keep=False`) en un registro sin identificador de paciente, donde muchas son probablemente atenciones legítimas, y no lo interpreta. Las copias sobrantes son 58.581. | Observación |
+| A-06 | El reporte da el total de outliers sin decir sobre qué columnas se buscó. Sin columnas numéricas, muestra un 0 que parece un resultado. | Bajo |
+| A-07 | Las NOTAS afirman que `scope="module"` da una copia fresca del objeto (es al revés: todos los tests comparten la misma instancia), tienen una frase cortada en la línea 472 y una afirmación imprecisa sobre `None` como `float`. | Bajo |
+| A-08 | El repositorio no tiene archivo `LICENSE`. | Observación |
+
+A continuación, se plantea la solución a los problemas encontrados, en el orden en que se corrigieron. Los hallazgos H1 a H5 se corrigieron el 24 de septiembre de 2026. El código de las correcciones de noviembre lo propuso Claude; yo lo apliqué, corrí las pruebas antes de cada commit y revisé cada línea hasta poder explicarla.
+
+## A-03
+
+En la versión anterior (antes de la auditoría), el reporte mostraba en «Archivo analizado» el argumento tal como se escribía al ejecutar la herramienta. ```self.source = df``` guarda ese texto sin transformarlo, y la plantilla lo imprimía con ```{self.source}```. Si se ejecutaba con una ruta absoluta, el reporte exponía la estructura de carpetas y el nombre de usuario de quien lo corría: el ```ejemplo_reporte.md``` publicado mostraba ```/home/<usuario>/Escritorio/...```. Además, el mismo archivo producía reportes distintos según la carpeta desde la que se ejecutara.
+
+### Solución
+
+```python
+        if self.source == "DataFrame en memoria":
+            archivo_analizado = self.source
+        else:
+            archivo_analizado = Path(self.source).name
+```
+
+Y en la plantilla del informe: ```- Archivo analizado: {archivo_analizado}```.
+
+**Explicación del código:**
+
+1. ```Path(self.source).name``` devuelve solo el nombre del archivo con su extensión: de ```/home/ana/datos/morbilidad.csv``` queda ```morbilidad.csv```. Se usa ```.name``` y no ```.stem```, que quita la extensión, porque el lector debe saber si se analizó un .csv o un .xlsx.
+2. Se descartó cambiar lo que guarda ```self.source```. Si guardara solo el nombre, ```__repr__``` perdería la ruta completa, que sí sirve para depurar, y habría que corregir el docstring de la clase, el README y estas NOTAS. La conversión se hace solo al presentar el dato.
+3. El caso "DataFrame en memoria" va en su propia rama. ```Path("DataFrame en memoria").name``` devuelve el mismo texto, pero eso funciona por casualidad: el código no debe depender de que un texto que no es una ruta se comporte como una.
+4. La prueba usa ```tmp_path```, que entrega una ruta absoluta (```/tmp/pytest-of-.../prueba.csv```). Con una ruta relativa como ```"prueba.csv"```, la prueba pasaría también con el código viejo, porque el argumento y el nombre coincidirían.
+
+**Verificación**
+
+```test_generar_reporte_sin_ruta_local``` falla con el código anterior y pasa con la corrección. ```pytest -q```: 8 passed.

@@ -73,7 +73,7 @@ data-quality-profiler/
 
 - **IQR (rango intercuartílico) para detectar outliers**, con el multiplicador estándar de 1.5 (outliers leves, no extremos). Es un método simple, no paramétrico, y suficiente para este nivel del proyecto — no requiere asumir una distribución normal de los datos.
 - **Offset de `+2` en los índices de filas duplicadas** cuando el origen es un archivo (`.csv`/`.xlsx`), para que el número de fila reportado corresponda a la fila real del archivo (encabezado + índice base 1 de una hoja de cálculo), no al índice interno de pandas. Cuando el origen es un DataFrame en memoria, se reporta el índice tal cual, sin ajustar.
-- **`self.source` conserva la ruta o el string `"DataFrame en memoria"`**, para que tanto `__repr__` como `generar_reporte()` puedan indicar de dónde vinieron los datos analizados.
+- **`self.source` conserva la ruta completa o el string `"DataFrame en memoria"`**, para que `__repr__` indique de dónde vinieron los datos. El reporte, en cambio, muestra solo el nombre del archivo (`Path(self.source).name`), para no exponer rutas locales ni el nombre de usuario de quien lo ejecuta.
 
 ## Limitaciones conocidas
 
