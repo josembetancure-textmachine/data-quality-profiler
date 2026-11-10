@@ -718,3 +718,36 @@ Y en los dos lugares que reportan filas:
 **Verificación**
 
 ```test_generar_reporte_offset_outliers_csv``` falla con el código anterior y pasa con la corrección. Las dos pruebas de duplicados siguen pasando sin cambios, lo que confirma que el refactor de ```reporte_duplicados()``` no alteró su resultado. ```pytest -q```: 11 passed.
+
+## A-01
+
+En la versión anterior (antes de la auditoría), cuando no había outliers el reporte mostraba ```[]``` en lugar de un mensaje. El código sí asignaba el texto "Sin outliers", pero a la variable ```outliers```, mientras que la plantilla imprimía ```lista_filas_outliers```, que seguía siendo la lista vacía del inicio. La auditoría original dio por hecho que el mensaje se mostraba: leyó el código sin ejecutar ese caso. ```test_generar_reporte``` tampoco lo detectó, porque solo comprobaba la línea del total.
+
+### Solución
+
+```python
+        outliers = self.reporte_outliers()
+        cantidad_outliers = outliers["total"]
+        if cantidad_outliers == 0:
+            tabla_outliers = "Sin outliers"
+        else:
+            lista_filas_outliers = []
+            for col, serie in outliers["valores"].items():
+                for fila, valor in serie.items():
+                    lista_filas_outliers.append({"Columna": col, "Fila": fila + self._desplazamiento_filas(), "Valor": valor})
+            tabla_outliers = tabla_markdown(pd.DataFrame(lista_filas_outliers))
+```
+
+Y en la plantilla, ```{tabla_outliers}``` en lugar de ```{lista_filas_outliers}```.
+
+**Explicación del código:**
+
+1. La causa fue reutilizar variables con significados distintos. ```outliers``` empezaba siendo el diccionario de ```reporte_outliers()``` y terminaba siendo un texto; ```lista_filas_outliers``` empezaba como lista y terminaba como DataFrame. Con dos variables que cambiaban de tipo, el texto se asignó a una y se imprimió la otra.
+2. Ahora la sección tiene una sola variable de salida, ```tabla_outliers```, que en las dos ramas es un texto listo para imprimir: "Sin outliers" o la tabla Markdown. La plantilla imprime esa variable y ninguna otra.
+3. ```lista_filas_outliers``` se crea dentro del ```else```, que es el único lugar donde se usa. Así no queda una lista vacía disponible para imprimirse por error.
+4. La condición usa ```cantidad_outliers```, que ya estaba calculada, en vez de volver a leer ```outliers["total"]```.
+5. ```test_generar_reporte``` ahora busca las dos filas de la tabla (```| d | 6 | -50 |``` y ```| d | 7 | 100 |```), no solo el total. Una prueba que solo mira el total no detecta un error en lo que se imprime debajo.
+
+**Verificación**
+
+```test_generar_reporte_sin_outliers``` falla con el código anterior y pasa con la corrección. ```pytest -q```: 12 passed.
