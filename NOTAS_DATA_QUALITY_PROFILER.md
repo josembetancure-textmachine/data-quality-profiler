@@ -646,3 +646,40 @@ Y en la plantilla del informe: ```- Archivo analizado: {archivo_analizado}```.
 **Verificación**
 
 ```test_generar_reporte_sin_ruta_local``` falla con el código anterior y pasa con la corrección. ```pytest -q```: 8 passed.
+
+## H6 y A-04
+
+En la versión anterior (antes de la auditoría), la plantilla de ```generar_reporte()``` insertaba cada resultado con un f-string, es decir, con ```str()```. Para una Series o un DataFrame, ```str()``` devuelve la representación que pandas usa para mostrar datos en pantalla, no los datos completos. Esa representación tenía dos problemas en un reporte. El primero (H6): obedece la opción ```display.max_rows```, que vale 60; si un objeto tiene más filas, pandas muestra solo las 5 primeras y las 5 últimas, separadas por ```..```. Afectaba las cuatro secciones: con 61 columnas, la de nulos no mostraba ```col_30```, justo la única con nulos, y en el ejemplo real la de duplicados mostraba 10 de 73.051 filas. El segundo (A-04): es texto alineado con espacios, no Markdown. En GitHub, las líneas seguidas se funden en un solo párrafo y el reporte se vuelve ilegible.
+
+### Solución
+
+```python
+MAX_FILAS_REPORTE = 50
+
+
+def tabla_markdown(tabla):
+    texto = tabla.head(MAX_FILAS_REPORTE).to_markdown(index=False)
+    if len(tabla) > MAX_FILAS_REPORTE:
+        texto += f"\n\n_Se muestran las primeras {MAX_FILAS_REPORTE} de {len(tabla)} filas._"
+    return texto
+```
+
+Y dentro de ```generar_reporte()```:
+
+```python
+        nulos = self.reporte_nulos().rename_axis("Columna").reset_index(name="Nulos")
+        nulos = nulos.to_markdown(index=False)
+```
+
+**Explicación del código:**
+
+1. ```to_markdown()``` convierte un DataFrame en una tabla Markdown (```| Columna | Nulos |```). No depende de ```display.max_rows```: escribe todas las filas que recibe. Requiere el paquete ```tabulate```, que no viene con pandas ni estaba en ```requirements.txt```; sin él, ```to_markdown()``` lanza ```ImportError```. Se agregó ```tabulate==0.10.0```. Es la misma lección de H1 con ```openpyxl```: una dependencia opcional de pandas hay que declararla.
+2. ```reporte_nulos()``` devuelve una Series cuyo índice son las columnas del archivo. ```rename_axis("Columna")``` le pone nombre a ese índice y ```reset_index(name="Nulos")``` lo convierte en columna, así la tabla queda con dos columnas con nombre. Lo mismo se hace con los tipos inconsistentes.
+3. No todas las secciones crecen igual. Nulos y tipos inconsistentes tienen una fila por columna del archivo: se muestran completas. Duplicados y outliers tienen una fila por registro, y en el dataset real hay 73.051 duplicados: listarlos todos daría un reporte de miles de líneas. Por eso pasan por ```tabla_markdown()```, que muestra como máximo ```MAX_FILAS_REPORTE``` filas (50) y agrega una nota en cursiva con cuántas había. La diferencia con el recorte de pandas es que este se declara.
+4. ```MAX_FILAS_REPORTE``` es una constante de módulo, en mayúsculas por convención: un valor que no cambia durante la ejecución y que se ajusta en un solo lugar. ```tabla_markdown()``` es una función del módulo y no un método, porque no usa nada del objeto (```self```).
+5. Las etiquetas pasaron de ```**- Total de outliers:**``` a ```- **Total de outliers:**```. En la versión anterior el guion quedaba dentro de la negrita y Markdown no lo leía como lista. Cada bloque va separado por una línea en blanco para que no se funda con el siguiente.
+6. ```test_generar_reporte``` comparaba contra ```str(profiler.reporte_nulos())```, justo la representación que se dejó de usar, así que se reescribió. Ahora busca filas de tabla con regex (```\|\s*a\s*\|\s*1\s*\|```: la columna "a" con 1 nulo) y comprueba que no queden restos de pandas (```dtype:```).
+
+**Verificación**
+
+Dos pruebas nuevas: ```test_generar_reporte_no_recorta_columnas``` (61 columnas, nulos en ```col_30```) y ```test_generar_reporte_declara_tope_de_filas``` (70 filas duplicadas → «Se muestran las primeras 50 de 70 filas.»). Las dos fallan con el código anterior y pasan con la corrección. ```pytest -q```: 10 passed. Al renderizar el reporte del DataFrame de prueba con un parser de Markdown, salen cuatro tablas y ya no se funde en párrafos.
