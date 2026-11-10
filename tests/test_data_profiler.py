@@ -144,3 +144,10 @@ def test_generar_reporte_sin_columnas_numericas():
     resultado = DataProfiler(df).generar_reporte()
     assert "- **Columnas numéricas evaluadas:** ninguna" in resultado
     assert "No hay columnas numéricas: no se buscaron outliers." in resultado
+
+def test_extension_en_mayusculas(tmp_path):
+    '''Verifica que se acepte un .csv válido aunque su extensión esté en mayúsculas (H9).'''
+    archivo = tmp_path / "DATOS.CSV"
+    pd.DataFrame({"a": [1, 2, 3]}).to_csv(archivo, index=False)
+    profiler_csv = DataProfiler(str(archivo))
+    assert len(profiler_csv.df) == 3

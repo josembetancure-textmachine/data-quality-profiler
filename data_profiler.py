@@ -53,10 +53,10 @@ class DataProfiler:
                 raise ValueError("La ruta del archivo a analizar contiene un error o es un formato no admitido."
                                  " Solo se admiten formatos .csv, .xlsx y DataFrames."
                                  )
-            elif Path(df).suffix == ".csv":
+            elif Path(df).suffix.lower() == ".csv":
                 self.source = df
                 df = pd.read_csv(df)
-            elif Path(df).suffix == ".xlsx":
+            elif Path(df).suffix.lower() == ".xlsx":
                 self.source = df
                 df = pd.read_excel(df)
             else:
