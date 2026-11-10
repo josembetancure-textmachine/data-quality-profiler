@@ -114,3 +114,11 @@ def test_generar_reporte_declara_tope_de_filas():
     df = pd.DataFrame({"a": [1] * 70})
     resultado = DataProfiler(df).generar_reporte()
     assert f"Se muestran las primeras {MAX_FILAS_REPORTE} de 70 filas." in resultado
+
+def test_generar_reporte_offset_outliers_csv(tmp_path):
+    '''Verifica que, en el reporte de un .csv, la fila de un outlier lleve el mismo +2 que las filas duplicadas, para que coincida con la fila real del archivo (H7).'''
+    df_prueba = pd.DataFrame({"v": [10, 11, 12, 10, 11, 12, 13, 1000]})  # el outlier 1000 tiene índice 7: es la fila 9 del archivo
+    archivo = tmp_path / "prueba.csv"
+    df_prueba.to_csv(archivo, index=False)
+    resultado = DataProfiler(str(archivo)).generar_reporte()
+    assert re.search(r"\|\s*v\s*\|\s*9\s*\|\s*1000\s*\|", resultado)

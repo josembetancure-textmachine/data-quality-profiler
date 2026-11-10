@@ -28,7 +28,7 @@ def tabla_markdown(tabla):
 
 class DataProfiler:
     '''
-    Contiene un DataFrame y 5 métodos distintos que se usan para analizar la calidad de los datos de ese DataFrame.
+    Contiene un DataFrame y métodos distintos que se usan para analizar la calidad de los datos de ese DataFrame.
 
     Attributes:
         df (pandas.DataFrame): DataFrame construido desde su formato de origen.
@@ -78,6 +78,22 @@ class DataProfiler:
         '''
         return f"DataProfiler(fuente={self.source!r}, filas={len(self.df)}, columnas={len(self.df.columns)})"
 
+    def _desplazamiento_filas(self):
+        '''
+        Calcula cuánto hay que sumar al índice de pandas para obtener el número de fila que se reporta.
+
+        Returns:
+            int: 0 si self.source = "DataFrame en memoria" (se reporta el índice tal cual); 2 si self.source es un archivo .csv o .xlsx,
+            para que el número coincida con la fila real del archivo (1 por el encabezado y 1 porque las hojas de cálculo cuentan desde 1).
+
+        Notes:
+            - El guion bajo inicial indica que es un método de uso interno de la clase, no parte de su interfaz pública.
+            - Es la única fuente de esta regla: la usan reporte_duplicados() y generar_reporte() (outliers).
+        '''
+        if self.source == "DataFrame en memoria":
+            return 0
+        return 2
+
     def reporte_nulos(self):
         '''
         Método para contabilizar la cantidad de datos nulos (NaN, NaT o None) en self.df
@@ -93,14 +109,11 @@ class DataProfiler:
 
         Returns:
             dict: llave "total" para la cantidad de filas duplicadas, llave "filas" para la lista con los índices de las filas duplicadas si self.source = "DataFrame en 
-            memoria", o cada índice +2 si self.source es un archivo .csv o .xlsx.
+            memoria", o cada índice +2 si self.source es un archivo .csv o .xlsx (ver _desplazamiento_filas()).
         '''
         mascara_duplicados = self.df.duplicated(keep=False)
         total_duplicadas = int(mascara_duplicados.sum())
-        if self.source == "DataFrame en memoria":
-            filas_duplicadas = (self.df[mascara_duplicados].index).tolist()
-        else:
-            filas_duplicadas = (self.df[mascara_duplicados].index + 2).tolist()
+        filas_duplicadas = (self.df[mascara_duplicados].index + self._desplazamiento_filas()).tolist()
         return {"total": total_duplicadas, "filas": filas_duplicadas}
 
     def reporte_tipos_inconsistentes(self):
@@ -190,7 +203,7 @@ class DataProfiler:
         else:
             for col, serie in outliers["valores"].items():
                 for fila, valor in serie.items():
-                    lista_filas_outliers.append({"Columna": col, "Fila": fila, "Valor": valor})
+                    lista_filas_outliers.append({"Columna": col, "Fila": fila + self._desplazamiento_filas(), "Valor": valor})
             lista_filas_outliers = tabla_markdown(pd.DataFrame(lista_filas_outliers))
 
         informe = (f"""# Metadata:
