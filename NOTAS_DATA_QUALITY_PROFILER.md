@@ -751,3 +751,35 @@ Y en la plantilla, ```{tabla_outliers}``` en lugar de ```{lista_filas_outliers}`
 **Verificación**
 
 ```test_generar_reporte_sin_outliers``` falla con el código anterior y pasa con la corrección. ```pytest -q```: 12 passed.
+
+## A-06
+
+En la versión anterior (antes de la auditoría), la sección de outliers daba el total sin decir sobre qué columnas se había buscado. ```reporte_outliers()``` solo evalúa las columnas que pandas reconoce como numéricas, y el reporte de un dataset sin columnas numéricas decía "Total de outliers: 0". Quien lo leía no podía distinguir entre "no hay outliers" y "no se buscó". Pasa también con la limitación de los .csv documentada en el README: una columna numérica con un solo texto se lee como texto y queda fuera del chequeo sin aviso.
+
+### Solución
+
+```python
+        columnas_evaluadas = [str(col) for col in outliers["valores"]]
+        if columnas_evaluadas:
+            texto_columnas = ", ".join(columnas_evaluadas)
+        else:
+            texto_columnas = "ninguna"
+
+        if not columnas_evaluadas:
+            tabla_outliers = "No hay columnas numéricas: no se buscaron outliers."
+        elif cantidad_outliers == 0:
+            tabla_outliers = "Sin outliers"
+```
+
+Y en la plantilla, la línea nueva ```- **Columnas numéricas evaluadas:** {texto_columnas}```.
+
+**Explicación del código:**
+
+1. No hizo falta cambiar ```reporte_outliers()```. Su llave ```"valores"``` es un diccionario con una entrada por cada columna numérica, tenga o no outliers. Recorrer ese diccionario da justo la lista de columnas evaluadas.
+2. ```str(col)``` convierte cada nombre en texto antes del ```join```. Un DataFrame puede tener columnas con nombres numéricos (```0```, ```1```), y ```", ".join()``` lanza ```TypeError``` si recibe algo que no es texto.
+3. Una lista vacía se evalúa como ```False``` en un ```if```. Por eso ```if columnas_evaluadas:``` significa "si hay al menos una columna" y ```if not columnas_evaluadas:``` significa "si no hay ninguna".
+4. El orden de las condiciones importa. "No hay columnas numéricas" va antes que "Sin outliers": sin columnas, el total también es 0, y si la segunda condición fuera primero el reporte diría "Sin outliers" sin haber buscado.
+
+**Verificación**
+
+```test_generar_reporte_columnas_evaluadas``` y ```test_generar_reporte_sin_columnas_numericas``` fallan con el código anterior y pasan con la corrección. ```pytest -q```: 14 passed.
