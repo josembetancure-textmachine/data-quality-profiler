@@ -72,7 +72,7 @@ data-quality-profiler/
 ## Decisiones de diseño
 
 - **IQR (rango intercuartílico) para detectar outliers**, con el multiplicador estándar de 1.5 (outliers leves, no extremos). Es un método simple, no paramétrico, y suficiente para este nivel del proyecto — no requiere asumir una distribución normal de los datos.
-- **Offset de `+2` en los índices de filas duplicadas** cuando el origen es un archivo (`.csv`/`.xlsx`), para que el número de fila reportado corresponda a la fila real del archivo (encabezado + índice base 1 de una hoja de cálculo), no al índice interno de pandas. Cuando el origen es un DataFrame en memoria, se reporta el índice tal cual, sin ajustar.
+- **Offset de `+2` en los números de fila** cuando el origen es un archivo (`.csv`/`.xlsx`), tanto en las filas duplicadas como en las de los outliers, para que el número reportado corresponda a la fila real del archivo (encabezado + índice base 1 de una hoja de cálculo), no al índice interno de pandas. Cuando el origen es un DataFrame en memoria, se reporta el índice tal cual. La regla vive en un solo método, `_desplazamiento_filas()`.
 - **`self.source` conserva la ruta completa o el string `"DataFrame en memoria"`**, para que `__repr__` indique de dónde vinieron los datos. El reporte, en cambio, muestra solo el nombre del archivo (`Path(self.source).name`), para no exponer rutas locales ni el nombre de usuario de quien lo ejecuta.
 - **Reporte en Markdown real, con tablas generadas por `to_markdown()`.** Requiere `tabulate`, declarado en `requirements.txt`. Nulos y tipos inconsistentes se muestran completos; duplicados y outliers muestran como máximo 50 filas (`MAX_FILAS_REPORTE`) y el reporte dice cuántas había, en vez de recortar en silencio como hacía la representación de pandas.
 

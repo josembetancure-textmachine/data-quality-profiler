@@ -683,3 +683,38 @@ Y dentro de ```generar_reporte()```:
 **Verificación**
 
 Dos pruebas nuevas: ```test_generar_reporte_no_recorta_columnas``` (61 columnas, nulos en ```col_30```) y ```test_generar_reporte_declara_tope_de_filas``` (70 filas duplicadas → «Se muestran las primeras 50 de 70 filas.»). Las dos fallan con el código anterior y pasan con la corrección. ```pytest -q```: 10 passed. Al renderizar el reporte del DataFrame de prueba con un parser de Markdown, salen cuatro tablas y ya no se funde en párrafos.
+
+## H7
+
+En la versión anterior (antes de la auditoría), ```reporte_duplicados()``` sumaba 2 a cada índice cuando los datos venían de un archivo, para que el número coincidiera con la fila real. ```generar_reporte()``` armaba la columna "Fila" de los outliers con el índice de pandas, sin ese ajuste. En un mismo reporte, la misma fila del archivo salía con dos números distintos: con un CSV de 9 filas, las filas 9 y 10 aparecían como "9, 10" en duplicados y como "7, 8" en outliers. Quien buscara el outlier en el archivo llegaría a una fila equivocada. Por eso se subió de Bajo a Medio: el reporte entregaba números de fila incorrectos con cualquier .csv o .xlsx.
+
+### Solución
+
+```python
+    def _desplazamiento_filas(self):
+        if self.source == "DataFrame en memoria":
+            return 0
+        return 2
+```
+
+Y en los dos lugares que reportan filas:
+
+```python
+        filas_duplicadas = (self.df[mascara_duplicados].index + self._desplazamiento_filas()).tolist()
+```
+
+```python
+                    lista_filas_outliers.append({"Columna": col, "Fila": fila + self._desplazamiento_filas(), "Valor": valor})
+```
+
+**Explicación del código:**
+
+1. El error no estaba en una fórmula, sino en que la regla del +2 vivía en un solo lugar (```reporte_duplicados()```) y había dos lugares que la necesitaban. ```_desplazamiento_filas()``` es ahora la única fuente de la regla: si cambia (por ejemplo, un archivo sin encabezado), se cambia una vez.
+2. El método devuelve 0 o 2, y quien lo llama solo suma. Por eso ```reporte_duplicados()``` ya no necesita ```if/else```: sumar 0 deja el índice igual.
+3. El guion bajo inicial (```_desplazamiento_filas```) es una convención de Python: indica que el método es de uso interno de la clase. Python no impide llamarlo desde afuera; es un aviso para quien lee.
+4. ```reporte_outliers()``` no cambió: sigue devolviendo las Series con el índice de pandas, como dice su docstring, y ```test_reporte_outliers``` sigue esperando los índices 6 y 7. El ajuste se hace al presentar las filas en el reporte.
+5. En la prueba, el outlier 1000 tiene índice 7. En el CSV está en la fila 9: la 1 es el encabezado y los datos empiezan en la 2. La regex busca la fila de la tabla ```| v | 9 | 1000 |``` sin depender de los espacios que agrega ```to_markdown()```.
+
+**Verificación**
+
+```test_generar_reporte_offset_outliers_csv``` falla con el código anterior y pasa con la corrección. Las dos pruebas de duplicados siguen pasando sin cambios, lo que confirma que el refactor de ```reporte_duplicados()``` no alteró su resultado. ```pytest -q```: 11 passed.
