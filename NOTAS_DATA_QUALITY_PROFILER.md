@@ -805,3 +805,29 @@ En la versión anterior (antes de la auditoría), el constructor comparaba la ex
 **Verificación**
 
 ```test_extension_en_mayusculas``` falla con el código anterior y pasa con la corrección. ```pytest -q```: 15 passed.
+
+## H8
+
+En la versión anterior (antes de la auditoría), el bloque ```__main__``` abría ```ejemplo_reporte.md``` con ```open(..., "w")``` y después construía el ```DataProfiler``` dentro del ```with```. El modo ```"w"``` vacía el archivo en el momento de abrirlo. Si el análisis fallaba (archivo inexistente, extensión no soportada, CSV vacío), el programa terminaba con error y dejaba el reporte en 0 bytes. En un clon del repositorio, un error de tipeo en el nombre del archivo borraba el ejemplo versionado.
+
+### Solución
+
+```python
+        df = sys.argv[1]
+        contenido_informe = DataProfiler(df).generar_reporte()
+
+        with open("ejemplo_reporte.md", "w") as ejemplo:
+            ejemplo.write(contenido_informe)
+```
+
+**Explicación del código:**
+
+1. El orden es la corrección: primero se genera el reporte y solo después se abre el archivo de salida. Si ```DataProfiler(df)``` o ```generar_reporte()``` lanzan un error, el programa se detiene antes del ```open()``` y el reporte anterior queda intacto.
+2. La prueba no puede llamar a una función, porque el error ocurre en el bloque ```__main__```, que solo corre cuando se ejecuta el archivo. Por eso usa ```subprocess.run()```, que ejecuta ```python data_profiler.py no_existe.csv``` como lo haría una persona en la terminal.
+3. ```sys.executable``` es la ruta del Python que está corriendo pytest, el de la ```.venv```. Así el proceso hijo usa las mismas dependencias.
+4. ```cwd=tmp_path``` ejecuta el script dentro de la carpeta temporal, donde está el ```ejemplo_reporte.md``` de prueba. El reporte real del repositorio no se toca.
+5. ```Path(__file__).resolve().parent.parent``` sube de ```tests/``` a la raíz del proyecto para encontrar ```data_profiler.py```.
+
+**Verificación**
+
+```test_cli_error_no_borra_reporte_anterior``` falla con el código anterior y pasa con la corrección. ```pytest -q```: 16 passed.
