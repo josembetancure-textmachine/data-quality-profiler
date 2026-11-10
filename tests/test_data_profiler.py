@@ -1,7 +1,9 @@
+import re
+
 import pandas as pd
 import pytest
 
-from data_profiler import DataProfiler
+from data_profiler import MAX_FILAS_REPORTE, DataProfiler
 
 @pytest.fixture(scope = "module")
 def dataframe_test():
@@ -81,15 +83,14 @@ def test_reporte_duplicados_offset_csv(tmp_path):
     assert resultado == {"total": 2, "filas": [2, 4]}
 
 def test_generar_reporte(profiler, dataframe_test):
-    '''Verifica que generar_reporte() incluya los resultados de los cuatro métodos de reporte en el string final, sin modificar el DataFrame original.'''
+    '''Verifica que generar_reporte() incluya los resultados de los cuatro métodos de reporte como Markdown real (tablas y listas), sin modificar el DataFrame original.'''
     dataframe_test_copy = dataframe_test.copy()
     resultado = profiler.generar_reporte()
-    assert str(profiler.reporte_nulos())  in resultado
-    assert f"**- Cantidad de filas duplicadas:** {profiler.reporte_duplicados()["total"]}" in resultado
-    resultado_inconsistentes = profiler.reporte_tipos_inconsistentes().items()
-    inconsistentes = pd.Series({col: cantidad for col, cantidad in resultado_inconsistentes if cantidad > 1})
-    assert str(inconsistentes) in resultado
-    assert f"**- Total de outliers:** {profiler.reporte_outliers()["total"]}" in resultado
+    assert re.search(r"\|\s*a\s*\|\s*1\s*\|", resultado)
+    assert f"- **Cantidad de filas duplicadas:** {profiler.reporte_duplicados()["total"]}" in resultado
+    assert re.search(r"\|\s*b\s*\|\s*2\s*\|", resultado)
+    assert f"- **Total de outliers:** {profiler.reporte_outliers()["total"]}" in resultado
+    assert "dtype:" not in resultado
     pd.testing.assert_frame_equal(dataframe_test, dataframe_test_copy)
 
 def test_generar_reporte_sin_ruta_local(tmp_path):
@@ -99,3 +100,17 @@ def test_generar_reporte_sin_ruta_local(tmp_path):
     resultado = DataProfiler(str(archivo)).generar_reporte()
     assert "- Archivo analizado: prueba.csv" in resultado
     assert str(tmp_path) not in resultado
+
+def test_generar_reporte_no_recorta_columnas():
+    '''Verifica que, con más de 60 columnas, la tabla de nulos las incluya todas; antes pandas recortaba la sección a 10 filas (H6).'''
+    df = pd.DataFrame({f"col_{i}": [1, 2, 3] for i in range(61)})
+    df.loc[0, "col_30"] = None
+    resultado = DataProfiler(df).generar_reporte()
+    assert "col_30" in resultado
+    assert ".." not in resultado
+
+def test_generar_reporte_declara_tope_de_filas():
+    '''Verifica que, si hay más filas duplicadas que MAX_FILAS_REPORTE, el reporte muestre solo las primeras y lo diga, en vez de recortar en silencio (H6).'''
+    df = pd.DataFrame({"a": [1] * 70})
+    resultado = DataProfiler(df).generar_reporte()
+    assert f"Se muestran las primeras {MAX_FILAS_REPORTE} de 70 filas." in resultado

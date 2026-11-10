@@ -2,6 +2,29 @@ import sys
 import pandas as pd
 from pathlib import Path
 
+MAX_FILAS_REPORTE = 50
+
+
+def tabla_markdown(tabla):
+    '''
+    Convierte un DataFrame en una tabla Markdown para el reporte. Si tiene más filas que MAX_FILAS_REPORTE, muestra solo las primeras y lo declara.
+
+    Args:
+        tabla (pandas.DataFrame): datos que se van a presentar, con los nombres de columna que se quieren ver en el reporte.
+
+    Returns:
+        str: tabla en formato Markdown, seguida de una nota en cursiva si se recortó.
+
+    Notes:
+        - Se usa para las tablas que crecen con el número de filas del dataset (duplicados y outliers). Las que crecen con el número de columnas
+        (nulos y tipos inconsistentes) se muestran siempre completas.
+        - to_markdown() requiere el paquete tabulate, declarado en requirements.txt.
+    '''
+    texto = tabla.head(MAX_FILAS_REPORTE).to_markdown(index=False)
+    if len(tabla) > MAX_FILAS_REPORTE:
+        texto += f"\n\n_Se muestran las primeras {MAX_FILAS_REPORTE} de {len(tabla)} filas._"
+    return texto
+
 
 class DataProfiler:
     '''
@@ -123,62 +146,77 @@ class DataProfiler:
         Método orquestador que compila los datos de los demás métodos en un solo reporte legible en formato .md
 
         Returns:
-            str: cadena de texto que presenta de manera legible la información devuelta por cada uno de los demás métodos.
+            str: cadena de texto en Markdown que presenta de manera legible la información devuelta por cada uno de los demás métodos.
             Para el caso de los tipos inconsistentes, se presentan en el informe únicamente las columnas que contienen 2 o más tipos de datos;
-            para el caso de outliers, se convierte la información en un DataFrame legible con las columnas "Columna", "Fila" y "Valor" para visualizar los datos
+            para el caso de outliers, se convierte la información en una tabla con las columnas "Columna", "Fila" y "Valor" para visualizar los datos
             más fácilmente.
 
         Notes:
             - Si los datos vienen de un archivo, el reporte muestra solo su nombre (Path(...).name) y no la ruta completa, para no exponer
             la estructura de carpetas ni el nombre de usuario de quien ejecuta la herramienta. self.source conserva la ruta completa para __repr__.
+            - Cada sección se escribe como tabla Markdown con to_markdown(), no con la representación de pandas (str()), que se recorta
+            cuando pasa de 60 filas y que en GitHub se funde en un solo párrafo.
+            - Nulos y tipos inconsistentes se muestran completos. Duplicados y outliers pasan por tabla_markdown(), que muestra como máximo
+            MAX_FILAS_REPORTE filas y declara el recorte.
         '''
         if self.source == "DataFrame en memoria":
             archivo_analizado = self.source
         else:
             archivo_analizado = Path(self.source).name
 
+        nulos = self.reporte_nulos().rename_axis("Columna").reset_index(name="Nulos")
+        nulos = nulos.to_markdown(index=False)
+
         duplicadas = self.reporte_duplicados()
         cantidad_duplicadas = duplicadas["total"]
         if duplicadas["total"] == 0:
             duplicadas = "Sin filas duplicadas"
         else:
-            duplicadas = pd.DataFrame(duplicadas["filas"], columns=["Fila"])
+            duplicadas = tabla_markdown(pd.DataFrame(duplicadas["filas"], columns=["Fila"]))
 
         resultado_inconsistentes = self.reporte_tipos_inconsistentes().items()
         inconsistentes = pd.Series({col: cantidad for col, cantidad in resultado_inconsistentes if cantidad > 1})
         if inconsistentes.empty:
             inconsistentes = "Sin tipos inconsistentes"
+        else:
+            inconsistentes = inconsistentes.rename_axis("Columna").reset_index(name="Tipos distintos")
+            inconsistentes = inconsistentes.to_markdown(index=False)
 
         outliers = self.reporte_outliers()
         cantidad_outliers = outliers["total"]
-        lista_filas_outliers=[]
+        lista_filas_outliers = []
         if outliers["total"] == 0:
             outliers = "Sin outliers"
         else:
             for col, serie in outliers["valores"].items():
                 for fila, valor in serie.items():
                     lista_filas_outliers.append({"Columna": col, "Fila": fila, "Valor": valor})
-            lista_filas_outliers=pd.DataFrame(lista_filas_outliers)
-
+            lista_filas_outliers = tabla_markdown(pd.DataFrame(lista_filas_outliers))
 
         informe = (f"""# Metadata:
+
 - Archivo analizado: {archivo_analizado}
 
 # Reporte de datos nulos:
-{self.reporte_nulos()}
+
+{nulos}
 
 # Reporte de datos duplicados:
-**- Cantidad de filas duplicadas:** {cantidad_duplicadas}
-**- Filas duplicadas:**
+
+- **Cantidad de filas duplicadas:** {cantidad_duplicadas}
+
 {duplicadas}
 
 # Reporte de tipos inconsistentes:
+
 {inconsistentes}
 
 # Reporte de outliers:
-**- Total de outliers:** {cantidad_outliers}
-**- Columna, fila y valor de los outliers:**
-{lista_filas_outliers}""")
+
+- **Total de outliers:** {cantidad_outliers}
+
+{lista_filas_outliers}
+""")
 
         return informe
 
